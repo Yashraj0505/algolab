@@ -17,6 +17,15 @@ const algorithms = [
       { id: 'binarySearch', name: 'Binary Search' },
     ],
   },
+  {
+    category: 'BST',
+    icon: '🌳',
+    items: [
+      { id: 'bstInsert', name: 'BST Insert' },
+      { id: 'bstSearch', name: 'BST Search' },
+      { id: 'bstDelete', name: 'BST Delete' },
+    ],
+  },
 ];
 
 /**

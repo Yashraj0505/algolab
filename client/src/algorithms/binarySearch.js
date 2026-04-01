@@ -1,6 +1,6 @@
 /**
  * Binary Search — generator that yields visualization frames.
- * Each frame: { array, low, high, mid, found, target, sorted }
+ * Each frame: { array, low, high, mid, found, target, sorted, comparisons }
  *
  * Unlike sorting, binary search works on a pre-sorted array.
  * We generate a sorted array and pick a random target.
@@ -13,6 +13,7 @@ export function* binarySearch(inputArray) {
   let low = 0;
   let high = array.length - 1;
   const eliminated = new Set();
+  let comparisons = 0;
 
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
@@ -26,8 +27,10 @@ export function* binarySearch(inputArray) {
       found: -1,
       target,
       eliminated: [...eliminated],
+      comparisons,
     };
 
+    comparisons++;
     if (array[mid] === target) {
       // Found!
       yield {
@@ -38,6 +41,7 @@ export function* binarySearch(inputArray) {
         found: mid,
         target,
         eliminated: [...eliminated],
+        comparisons,
       };
       return;
     } else if (array[mid] < target) {
@@ -60,6 +64,7 @@ export function* binarySearch(inputArray) {
     found: -1,
     target,
     eliminated: [...eliminated],
+    comparisons,
   };
 }
 
@@ -69,3 +74,28 @@ export const binarySearchInfo = {
   spaceComplexity: 'O(1)',
   description: 'Searches a sorted array by repeatedly dividing the search interval in half.',
 };
+
+export const binarySearchCode = `function binarySearch(array, target) {
+  let low = 0;
+  let high = array.length - 1;
+  
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    
+    // Check if target found
+    if (array[mid] === target) {
+      return mid;
+    }
+    
+    // Eliminate left half
+    if (array[mid] < target) {
+      low = mid + 1;
+    } 
+    // Eliminate right half
+    else {
+      high = mid - 1;
+    }
+  }
+  
+  return -1; // Not found
+}`;

@@ -22,11 +22,11 @@ export function* mergeSort(inputArray) {
   const n = array.length;
   const metrics = { comparisons: 0, swaps: 0 };
 
-  // Collect all visualization frames via recursive helper
+  
   const frames = [];
   mergeSortRecursive(array, 0, n - 1, frames, metrics);
 
-  // Final frame — everything sorted
+  
   const allSorted = Array.from({ length: n }, (_, i) => i);
   frames.push({
     array: [...array],
@@ -45,15 +45,13 @@ export function* mergeSort(inputArray) {
   }
 }
 
-/**
- * Recursive merge sort — the classic top-down approach.
- */
+
 function mergeSortRecursive(array, left, right, frames, metrics) {
   if (left >= right) return;
 
   const mid = Math.floor((left + right) / 2);
 
-  // ── DIVIDE: show which range we're splitting ──
+  
   frames.push({
     array: [...array],
     comparing: [],
@@ -67,13 +65,13 @@ function mergeSortRecursive(array, left, right, frames, metrics) {
     swaps: metrics.swaps,
   });
 
-  // Recurse left half
+  
   mergeSortRecursive(array, left, mid, frames, metrics);
 
-  // Recurse right half
+  
   mergeSortRecursive(array, mid + 1, right, frames, metrics);
 
-  // ── MERGE: merge the two sorted halves ──
+  
   merge(array, left, mid, right, frames, metrics);
 }
 

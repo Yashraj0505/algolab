@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import Visualizer from '../components/Visualizer';
 import BSTVisualizer from '../components/BSTVisualizer';
+import LCSVisualizer from '../components/LCSVisualizer';
 import Controls from '../components/Controls';
 import AiPanel from '../components/AiPanel';
 import PerformanceMetrics from '../components/PerformanceMetrics';
@@ -28,6 +29,9 @@ import {
   bstInfo,
   bstCode,
 } from '../algorithms/bst';
+
+// LCS import
+import { lcs, lcsInfo, lcsCode } from '../algorithms/lcs';
 
 // ─── Algorithm registry (sorting / searching only) ───────────────────────────
 const algorithmRegistry = {
@@ -78,8 +82,19 @@ export default function Home() {
   const bstGenRef = useRef(null);
   const bstIntervalRef = useRef(null);
 
+  // ── LCS state ─────────────────────────────────────────────────────────────
+  const [lcsStr1, setLcsStr1] = useState('ABCBDAB');
+  const [lcsStr2, setLcsStr2] = useState('BDCAB');
+  const [lcsFrame, setLcsFrame] = useState(null);
+  const [lcsRunning, setLcsRunning] = useState(false);
+  const [lcsDone, setLcsDone] = useState(false);
+
+  const lcsGenRef = useRef(null);
+  const lcsIntervalRef = useRef(null);
+
   const isBST = BST_IDS.has(selectedAlgo);
-  const currentAlgo = !isBST ? algorithmRegistry[selectedAlgo] : null;
+  const isLCS = selectedAlgo === 'lcs';
+  const currentAlgo = (!isBST && !isLCS) ? algorithmRegistry[selectedAlgo] : null;
 
   // ── Sorting/Searching helpers ─────────────────────────────────────────────
   const initGenerator = useCallback(() => {
@@ -181,11 +196,15 @@ export default function Home() {
     setBstFrame(null);
     setBstInput('');
     setBstDone(false);
+    // Reset LCS animation
+    stopLCS();
+    setLcsFrame(null);
+    setLcsDone(false);
   }, []); // eslint-disable-line
 
   // Auto-play loop (sorting/searching)
   useEffect(() => {
-    if (!isBST && isRunning) {
+    if (!isBST && !isLCS && isRunning) {
       if (!generatorRef.current) {
         generatorRef.current = currentAlgo.generator(array);
       }
@@ -203,7 +222,7 @@ export default function Home() {
       clearInterval(intervalRef.current);
       clearInterval(timerRef.current);
     };
-  }, [isRunning, speed, step, currentAlgo, array, startTime, isBST]);
+  }, [isRunning, speed, step, currentAlgo, array, startTime, isBST, isLCS]);
 
   // ── BST helpers ───────────────────────────────────────────────────────────
   function stopBST() {
@@ -348,11 +367,106 @@ export default function Home() {
     bstDFS: 'Run DFS',
   }[selectedAlgo] || '';
 
+  // ── LCS helpers ───────────────────────────────────────────────────────────
+  function stopLCS() {
+    setLcsRunning(false);
+    clearInterval(lcsIntervalRef.current);
+    lcsGenRef.current = null;
+  }
+
+  function handleLCSRun() {
+    const s1 = lcsStr1.trim();
+    const s2 = lcsStr2.trim();
+    if (!s1 || !s2) return;
+
+    stopLCS();
+    const gen = lcs(s1, s2);
+    lcsGenRef.current = gen;
+    setLcsRunning(true);
+    setLcsDone(false);
+    setLcsFrame(null);
+
+    lcsIntervalRef.current = setInterval(() => {
+      if (!lcsGenRef.current) return;
+      const { value, done } = lcsGenRef.current.next();
+      if (done) {
+        clearInterval(lcsIntervalRef.current);
+        setLcsRunning(false);
+        setLcsDone(true);
+        lcsGenRef.current = null;
+        return;
+      }
+      setLcsFrame(value);
+    }, speed);
+  }
+
+  function handleLCSReset() {
+    stopLCS();
+    setLcsFrame(null);
+    setLcsDone(false);
+  }
+
+  function handleLCSStep() {
+    // If no generator yet, create one first
+    if (!lcsGenRef.current) {
+      const s1 = lcsStr1.trim();
+      const s2 = lcsStr2.trim();
+      if (!s1 || !s2) return;
+      lcsGenRef.current = lcs(s1, s2);
+      setLcsDone(false);
+    }
+    const { value, done } = lcsGenRef.current.next();
+    if (done) {
+      setLcsRunning(false);
+      setLcsDone(true);
+      clearInterval(lcsIntervalRef.current);
+      lcsGenRef.current = null;
+      return;
+    }
+    setLcsFrame(value);
+  }
+
+  function handleLCSStart() {
+    if (!lcsGenRef.current) {
+      handleLCSRun();
+      return;
+    }
+    setLcsRunning(true);
+    lcsIntervalRef.current = setInterval(() => {
+      if (!lcsGenRef.current) {
+        clearInterval(lcsIntervalRef.current);
+        return;
+      }
+      const { value, done } = lcsGenRef.current.next();
+      if (done) {
+        clearInterval(lcsIntervalRef.current);
+        setLcsRunning(false);
+        setLcsDone(true);
+        lcsGenRef.current = null;
+        return;
+      }
+      setLcsFrame(value);
+    }, speed);
+  }
+
+  function handleLCSPause() {
+    setLcsRunning(false);
+    clearInterval(lcsIntervalRef.current);
+  }
+
+  // Cleanup LCS intervals on unmount
+  useEffect(() => () => clearInterval(lcsIntervalRef.current), []);
+
+  // ── Determine which info / code to show ────────────────────────────────────
+  const currentInfo = isLCS ? lcsInfo : isBST ? bstInfo : currentAlgo?.info;
+  const currentCode = isLCS ? lcsCode : isBST ? bstCode : currentAlgo?.code;
+  const currentActiveLine = isLCS ? lcsFrame?.activeLine : isBST ? bstFrame?.activeLine : frame?.activeLine;
+
   // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
       {/* Top Navbar */}
-      <Navbar algorithmInfo={isBST ? bstInfo : currentAlgo.info} />
+      <Navbar algorithmInfo={currentInfo} />
 
       {/* Main body */}
       <div className="flex flex-1 min-h-0">
@@ -362,8 +476,118 @@ export default function Home() {
         {/* Center: Visualizer + Controls */}
         <main className="flex-1 flex flex-col min-h-0 bg-zinc-950">
 
-          {/* ── BST Branch ─────────────────────────────────────────── */}
-          {isBST ? (
+          {/* ── LCS Branch ───────────────────────────────────────── */}
+          {isLCS ? (
+            <>
+              <LCSVisualizer frame={lcsFrame} />
+
+              {/* LCS Controls */}
+              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
+                {/* String inputs */}
+                <input
+                  type="text"
+                  value={lcsStr1}
+                  onChange={(e) => { setLcsStr1(e.target.value.toUpperCase()); }}
+                  placeholder="String 1"
+                  className="w-32 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
+                  disabled={lcsRunning}
+                  maxLength={15}
+                />
+                <input
+                  type="text"
+                  value={lcsStr2}
+                  onChange={(e) => { setLcsStr2(e.target.value.toUpperCase()); }}
+                  placeholder="String 2"
+                  className="w-32 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
+                  disabled={lcsRunning}
+                  maxLength={15}
+                />
+
+                {/* Run button */}
+                <button
+                  onClick={handleLCSRun}
+                  disabled={lcsRunning || !lcsStr1.trim() || !lcsStr2.trim()}
+                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 19,12 5,21" />
+                  </svg>
+                  Run
+                </button>
+
+                {/* Pause / Resume */}
+                {lcsRunning ? (
+                  <button
+                    onClick={handleLCSPause}
+                    className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="5" y="3" width="4" height="18" />
+                      <rect x="15" y="3" width="4" height="18" />
+                    </svg>
+                    Pause
+                  </button>
+                ) : lcsGenRef.current && !lcsDone ? (
+                  <button
+                    onClick={handleLCSStart}
+                    className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5,3 19,12 5,21" />
+                    </svg>
+                    Resume
+                  </button>
+                ) : null}
+
+                {/* Step */}
+                <button
+                  onClick={handleLCSStep}
+                  disabled={lcsRunning || lcsDone}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 15,12 5,21" />
+                    <rect x="17" y="3" width="3" height="18" />
+                  </svg>
+                  Step
+                </button>
+
+                {/* Reset */}
+                <button
+                  onClick={handleLCSReset}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="1,4 1,10 7,10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  Reset
+                </button>
+
+                {/* Divider */}
+                <div className="w-px h-6 bg-zinc-800 mx-2" />
+
+                {/* Speed */}
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
+                  <input
+                    type="range"
+                    min="10"
+                    max="500"
+                    value={510 - speed}
+                    onChange={(e) => setSpeed(510 - Number(e.target.value))}
+                    className="w-24 accent-zinc-400"
+                  />
+                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
+                </div>
+
+                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
+                  Grid: <span className="text-zinc-300 font-mono font-medium">{lcsStr1.trim().length + 1} × {lcsStr2.trim().length + 1}</span>
+                </div>
+              </div>
+            </>
+          ) : isBST ? (
+            /* ── BST Branch ─────────────────────────────────────────── */
             <>
               <BSTVisualizer
                 frame={bstFrame ?? { root: bstRoot, highlightedNodes: [], highlightedEdges: [], pathNodes: [], message: null, phase: null }}
@@ -527,8 +751,8 @@ export default function Home() {
           {/* Conditional Panel */}
           {showCodePanel ? (
             <CodePanel
-              code={isBST ? bstCode : currentAlgo.code}
-              activeLine={isBST ? bstFrame?.activeLine : frame?.activeLine}
+              code={currentCode}
+              activeLine={currentActiveLine}
             />
           ) : (
             <AiPanel />

@@ -31,6 +31,13 @@ const algorithms = [
       { id: 'bstDFS', name: 'DFS Iterative' },
     ],
   },
+  {
+    category: 'Dynamic Programming',
+    icon: '📊',
+    items: [
+      { id: 'lcs', name: 'LCS' },
+    ],
+  },
 ];
 
 /**

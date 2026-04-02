@@ -1,12 +1,4 @@
-/**
- * Binary Search — generator that yields visualization frames.
- * Each frame: { array, low, high, mid, found, target, sorted, comparisons }
- *
- * Unlike sorting, binary search works on a pre-sorted array.
- * We generate a sorted array and pick a random target.
- */
 export function* binarySearch(inputArray) {
-  // Sort the array first (binary search requires sorted input)
   const array = [...inputArray].sort((a, b) => a - b);
   const target = array[Math.floor(Math.random() * array.length)];
 
@@ -18,7 +10,6 @@ export function* binarySearch(inputArray) {
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
 
-    // Show current search window
     yield {
       array: [...array],
       low,
@@ -32,7 +23,6 @@ export function* binarySearch(inputArray) {
 
     comparisons++;
     if (array[mid] === target) {
-      // Found!
       yield {
         array: [...array],
         low,

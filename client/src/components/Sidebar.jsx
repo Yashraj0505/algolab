@@ -24,6 +24,11 @@ const algorithms = [
       { id: 'bstInsert', name: 'BST Insert' },
       { id: 'bstSearch', name: 'BST Search' },
       { id: 'bstDelete', name: 'BST Delete' },
+      { id: 'bstInorder', name: 'Inorder Traversal' },
+      { id: 'bstPreorder', name: 'Preorder Traversal' },
+      { id: 'bstPostorder', name: 'Postorder Traversal' },
+      { id: 'bstBFS', name: 'BFS (Level Order)' },
+      { id: 'bstDFS', name: 'DFS Iterative' },
     ],
   },
 ];
@@ -33,17 +38,17 @@ const algorithms = [
  */
 export default function Sidebar({ selected, onSelect }) {
   return (
-    <aside className="w-56 shrink-0 bg-[#0c1022] border-r border-slate-800 flex flex-col overflow-y-auto">
+    <aside className="w-56 shrink-0 bg-zinc-950 border-r border-zinc-800/50 flex flex-col overflow-y-auto">
       <div className="p-4">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 mb-4">
           Algorithms
         </h2>
 
         {algorithms.map((group) => (
-          <div key={group.category} className="mb-5">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-base">{group.icon}</span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <div key={group.category} className="mb-6">
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <span className="text-sm text-zinc-400">{group.icon}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
                 {group.category}
               </span>
             </div>
@@ -58,10 +63,10 @@ export default function Sidebar({ selected, onSelect }) {
                     whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.97 }}
                     className={`
-                      text-left px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer
+                      text-left px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors cursor-pointer
                       ${isActive
-                        ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/25'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                        ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/50 shadow-sm'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30 border border-transparent'
                       }
                     `}
                   >
@@ -75,8 +80,8 @@ export default function Sidebar({ selected, onSelect }) {
       </div>
 
       {/* Footer */}
-      <div className="mt-auto p-4 border-t border-slate-800">
-        <p className="text-[10px] text-slate-600 text-center">
+      <div className="mt-auto p-4 border-t border-zinc-800/50">
+        <p className="text-[10px] text-zinc-600 text-center font-medium">
           Built with ♥ for learning
         </p>
       </div>

@@ -1,16 +1,9 @@
-/**
- * BST Operations — generators that yield visualization frames.
- *
- * Each frame: { root, highlightedNodes, highlightedEdges, message, phase, targetValue, pathNodes }
- */
 
-// ─── Node factory ───────────────────────────────────────────────────────────
 let nextId = 0;
 function makeNode(value) {
   return { id: nextId++, value, left: null, right: null };
 }
 
-// ─── Deep-clone a BST (ids preserved) ───────────────────────────────────────
 function cloneTree(node) {
   if (!node) return null;
   return {
@@ -21,19 +14,16 @@ function cloneTree(node) {
   };
 }
 
-// ─── Count nodes ─────────────────────────────────────────────────────────────
 function countNodes(node) {
   if (!node) return 0;
   return 1 + countNodes(node.left) + countNodes(node.right);
 }
 
-// ─── In-order min ────────────────────────────────────────────────────────────
 function minNode(node) {
   while (node.left) node = node.left;
   return node;
 }
 
-// ─── Pure insert (no animation) ─────────────────────────────────────────────
 function insertNode(node, value) {
   if (!node) return makeNode(value);
   if (value < node.value) node.left = insertNode(node.left, value);
@@ -41,7 +31,6 @@ function insertNode(node, value) {
   return node;
 }
 
-// ─── Pure delete ─────────────────────────────────────────────────────────────
 function deleteNode(node, value) {
   if (!node) return null;
   if (value < node.value) {
@@ -58,7 +47,6 @@ function deleteNode(node, value) {
   return node;
 }
 
-// ─── Collect IDs along inorder traversal ─────────────────────────────────────
 function collectIds(node, out = []) {
   if (!node) return out;
   collectIds(node.left, out);
@@ -67,9 +55,6 @@ function collectIds(node, out = []) {
   return out;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// INSERT generator
-// ═══════════════════════════════════════════════════════════════════════════════
 export function* bstInsert(root, value) {
   nextId = countNodes(root); // keep ids stable
   const path = [];   // node ids visited
@@ -77,7 +62,6 @@ export function* bstInsert(root, value) {
 
   let current = root;
 
-  // ── Animate the search path ──────────────────────────────────────────────
   while (current) {
     path.push(current.id);
     yield {
@@ -88,6 +72,7 @@ export function* bstInsert(root, value) {
       message: `Comparing ${value} with ${current.value} → go ${value < current.value ? 'left' : 'right'}`,
       phase: 'traversing',
       targetValue: value,
+      activeLine: value < current.value ? 4 : 6,
     };
 
     if (value === current.value) {
@@ -99,6 +84,7 @@ export function* bstInsert(root, value) {
         message: `${value} already exists in the tree!`,
         phase: 'duplicate',
         targetValue: value,
+        activeLine: 8,
       };
       return;
     }
@@ -108,10 +94,8 @@ export function* bstInsert(root, value) {
     current = next;
   }
 
-  // ── Insert the node ──────────────────────────────────────────────────────
-  root = insertNode(root, value);  // mutates in-place for the last null slot
-
-  // find the new node
+  root = insertNode(root, value);
+  
   function findNew(node, val) {
     if (!node) return null;
     if (node.value === val && node.left === null && node.right === null) return node;
@@ -119,11 +103,10 @@ export function* bstInsert(root, value) {
     if (l) return l;
     return findNew(node.right, val);
   }
-  // Find newly inserted node (it's a leaf with the inserted value)
+  
   function findInserted(node, val, parentPath) {
     if (!node) return null;
     if (node.value === val) {
-      // Check if it's on the right path
       return node;
     }
     const inLeft = findInserted(node.left, val, parentPath);
@@ -143,6 +126,7 @@ export function* bstInsert(root, value) {
     phase: 'inserted',
     targetValue: value,
     newNodeId: newId,
+    activeLine: 3,
   };
 
   // Final clean frame
@@ -155,14 +139,12 @@ export function* bstInsert(root, value) {
     phase: 'done',
     targetValue: value,
     newNodeId: newId,
+    activeLine: 8,
   };
 
   return root; // caller can use this
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// SEARCH generator
-// ═══════════════════════════════════════════════════════════════════════════════
 export function* bstSearch(root, value) {
   const path = [];
 
@@ -178,6 +160,7 @@ export function* bstSearch(root, value) {
       message: `Checking ${current.value}… ${value === current.value ? 'Found!' : value < current.value ? 'Go left' : 'Go right'}`,
       phase: 'searching',
       targetValue: value,
+      activeLine: 13,
     };
 
     if (current.value === value) {
@@ -190,6 +173,7 @@ export function* bstSearch(root, value) {
         phase: 'found',
         targetValue: value,
         foundId: current.id,
+        activeLine: 14,
       };
       return;
     }
@@ -205,17 +189,14 @@ export function* bstSearch(root, value) {
     message: `✗ ${value} not found in the BST`,
     phase: 'notfound',
     targetValue: value,
+    activeLine: 14,
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// DELETE generator
-// ═══════════════════════════════════════════════════════════════════════════════
 export function* bstDelete(root, value) {
   const path = [];
   let current = root;
 
-  // ── Traverse to find the node ────────────────────────────────────────────
   while (current) {
     path.push(current.id);
     yield {
@@ -226,6 +207,7 @@ export function* bstDelete(root, value) {
       message: `Looking for ${value}: checking ${current.value}`,
       phase: 'searching',
       targetValue: value,
+      activeLine: value < current.value ? 23 : (value > current.value ? 25 : 27),
     };
 
     if (current.value === value) break;
@@ -241,20 +223,22 @@ export function* bstDelete(root, value) {
       message: `✗ ${value} not found — cannot delete`,
       phase: 'notfound',
       targetValue: value,
+      activeLine: 22,
     };
     return;
   }
 
-  // ── Found it — show deletion phase ──────────────────────────────────────
   const deletedId = current.id;
 
-  // Describe the case
   let caseMsg = '';
-  if (!current.left && !current.right) caseMsg = 'Leaf node — simply remove it';
-  else if (!current.left || !current.right) caseMsg = 'One child — replace with child';
+  let activeLine = 22;
+  if (!current.left && !current.right) { caseMsg = 'Leaf node — simply remove it'; activeLine = 28; }
+  else if (!current.left) { caseMsg = 'One child — replace with right child'; activeLine = 28; }
+  else if (!current.right) { caseMsg = 'One child — replace with left child'; activeLine = 29; }
   else {
     const succ = minNode(current.right);
     caseMsg = `Two children — replace with in-order successor (${succ.value})`;
+    activeLine = 34;
   }
 
   yield {
@@ -266,9 +250,9 @@ export function* bstDelete(root, value) {
     phase: 'deleting',
     targetValue: value,
     deletedId,
+    activeLine,
   };
 
-  // ── Perform deletion ─────────────────────────────────────────────────────
   root = deleteNode(root, value);
 
   yield {
@@ -279,9 +263,234 @@ export function* bstDelete(root, value) {
     message: `✓ ${value} deleted from BST`,
     phase: 'done',
     targetValue: value,
+    activeLine: 36,
   };
 
   return root;
+}
+
+export function* bstInorder(root) {
+  const result = [];
+  const visitedIds = [];
+
+  function* traverse(node, fromId) {
+    yield { activeLine: 41, phase: 'traversing', currentId: node ? node.id : fromId };
+    if (!node) return;
+
+    yield { activeLine: 42, phase: 'traversing', currentId: node.id };
+    yield* traverse(node.left, node.id);
+
+    result.push(node.value);
+    visitedIds.push(node.id);
+    yield { activeLine: 43, phase: 'found', currentId: node.id, foundId: node.id };
+
+    yield { activeLine: 44, phase: 'traversing', currentId: node.id };
+    yield* traverse(node.right, node.id);
+  }
+
+  for (const frame of traverse(root, null)) {
+    yield {
+      root: cloneTree(root),
+      highlightedNodes: frame.currentId !== null ? [...visitedIds, frame.currentId] : [...visitedIds],
+      highlightedEdges: [],
+      pathNodes: [],
+      message: `Inorder: [${result.join(', ')}]`,
+      phase: frame.phase,
+      targetValue: null,
+      foundId: frame.foundId,
+      activeLine: frame.activeLine,
+    };
+  }
+
+  yield {
+    root: cloneTree(root),
+    highlightedNodes: [...visitedIds],
+    highlightedEdges: [],
+    pathNodes: [],
+    message: `Done! Inorder sequence: [${result.join(', ')}]`,
+    phase: 'done',
+    activeLine: 45,
+  };
+}
+
+export function* bstPreorder(root) {
+  const result = [];
+  const visitedIds = [];
+
+  function* traverse(node, fromId) {
+    yield { activeLine: 49, phase: 'traversing', currentId: node ? node.id : fromId };
+    if (!node) return;
+
+    result.push(node.value);
+    visitedIds.push(node.id);
+    yield { activeLine: 50, phase: 'found', currentId: node.id, foundId: node.id };
+
+    yield { activeLine: 51, phase: 'traversing', currentId: node.id };
+    yield* traverse(node.left, node.id);
+
+    yield { activeLine: 52, phase: 'traversing', currentId: node.id };
+    yield* traverse(node.right, node.id);
+  }
+
+  for (const frame of traverse(root, null)) {
+    yield {
+      root: cloneTree(root),
+      highlightedNodes: frame.currentId !== null ? [...visitedIds, frame.currentId] : [...visitedIds],
+      highlightedEdges: [],
+      pathNodes: [],
+      message: `Preorder: [${result.join(', ')}]`,
+      phase: frame.phase,
+      targetValue: null,
+      foundId: frame.foundId,
+      activeLine: frame.activeLine,
+    };
+  }
+
+  yield {
+    root: cloneTree(root),
+    highlightedNodes: [...visitedIds],
+    highlightedEdges: [],
+    pathNodes: [],
+    message: `Done! Preorder sequence: [${result.join(', ')}]`,
+    phase: 'done',
+    activeLine: 53,
+  };
+}
+
+export function* bstPostorder(root) {
+  const result = [];
+  const visitedIds = [];
+
+  function* traverse(node, fromId) {
+    yield { activeLine: 57, phase: 'traversing', currentId: node ? node.id : fromId };
+    if (!node) return;
+
+    yield { activeLine: 58, phase: 'traversing', currentId: node.id };
+    yield* traverse(node.left, node.id);
+
+    yield { activeLine: 59, phase: 'traversing', currentId: node.id };
+    yield* traverse(node.right, node.id);
+
+    result.push(node.value);
+    visitedIds.push(node.id);
+    yield { activeLine: 60, phase: 'found', currentId: node.id, foundId: node.id };
+  }
+
+  for (const frame of traverse(root, null)) {
+    yield {
+      root: cloneTree(root),
+      highlightedNodes: frame.currentId !== null ? [...visitedIds, frame.currentId] : [...visitedIds],
+      highlightedEdges: [],
+      pathNodes: [],
+      message: `Postorder: [${result.join(', ')}]`,
+      phase: frame.phase,
+      targetValue: null,
+      foundId: frame.foundId,
+      activeLine: frame.activeLine,
+    };
+  }
+
+  yield {
+    root: cloneTree(root),
+    highlightedNodes: [...visitedIds],
+    highlightedEdges: [],
+    pathNodes: [],
+    message: `Done! Postorder sequence: [${result.join(', ')}]`,
+    phase: 'done',
+    activeLine: 61,
+  };
+}
+
+export function* bstBFS(root) {
+  const result = [];
+  const visitedIds = [];
+  if (!root) return;
+  const queue = [root];
+
+  yield { activeLine: 64, phase: 'traversing' };
+
+  while (queue.length > 0) {
+    const node = queue.shift();
+
+    result.push(node.value);
+    visitedIds.push(node.id);
+    yield {
+      activeLine: 68, phase: 'found', currentId: node.id, foundId: node.id,
+      root: cloneTree(root),
+      highlightedNodes: [...visitedIds],
+      highlightedEdges: [],
+      pathNodes: [],
+      message: `BFS: [${result.join(', ')}]`
+    };
+
+    if (node.left) queue.push(node.left);
+    if (node.right) queue.push(node.right);
+
+    yield {
+      activeLine: 69, phase: 'traversing', currentId: node.id,
+      root: cloneTree(root),
+      highlightedNodes: [...visitedIds],
+      highlightedEdges: [],
+      pathNodes: [],
+      message: `BFS: [${result.join(', ')}]`
+    };
+  }
+
+  yield {
+    root: cloneTree(root),
+    highlightedNodes: [...visitedIds],
+    highlightedEdges: [],
+    pathNodes: [],
+    message: `Done! BFS sequence: [${result.join(', ')}]`,
+    phase: 'done',
+    activeLine: 71,
+  };
+}
+
+export function* bstDFS(root) {
+  const result = [];
+  const visitedIds = [];
+  if (!root) return;
+  const stack = [root];
+
+  yield { activeLine: 75, phase: 'traversing' };
+
+  while (stack.length > 0) {
+    const node = stack.pop();
+
+    result.push(node.value);
+    visitedIds.push(node.id);
+    yield {
+      activeLine: 78, phase: 'found', currentId: node.id, foundId: node.id,
+      root: cloneTree(root),
+      highlightedNodes: [...visitedIds],
+      highlightedEdges: [],
+      pathNodes: [],
+      message: `DFS: [${result.join(', ')}]`
+    };
+
+    if (node.right) stack.push(node.right);
+    if (node.left) stack.push(node.left);
+
+    yield {
+      activeLine: 80, phase: 'traversing', currentId: node.id,
+      root: cloneTree(root),
+      highlightedNodes: [...visitedIds],
+      highlightedEdges: [],
+      pathNodes: [],
+      message: `DFS: [${result.join(', ')}]`
+    };
+  }
+
+  yield {
+    root: cloneTree(root),
+    highlightedNodes: [...visitedIds],
+    highlightedEdges: [],
+    pathNodes: [],
+    message: `Done! DFS sequence: [${result.join(', ')}]`,
+    phase: 'done',
+    activeLine: 81,
+  };
 }
 
 // ─── Build a starter BST from an array of values ────────────────────────────
@@ -335,4 +544,28 @@ function deleteNode(root, value) {
     root.right = deleteNode(root.right, succ.value);
   }
   return root;
+}
+
+// BST Inorder
+function inorder(root, res) {
+  if (!root) return;
+  inorder(root.left, res);
+  res.push(root.value);
+  inorder(root.right, res);
+}
+
+// BST Preorder
+function preorder(root, res) {
+  if (!root) return;
+  res.push(root.value);
+  preorder(root.left, res);
+  preorder(root.right, res);
+}
+
+// BST Postorder
+function postorder(root, res) {
+  if (!root) return;
+  postorder(root.left, res);
+  postorder(root.right, res);
+  res.push(root.value);
 }`;

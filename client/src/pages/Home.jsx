@@ -19,6 +19,11 @@ import {
   bstInsert,
   bstSearch,
   bstDelete,
+  bstInorder,
+  bstPreorder,
+  bstPostorder,
+  bstBFS,
+  bstDFS,
   buildBST,
   bstInfo,
   bstCode,
@@ -32,7 +37,8 @@ const algorithmRegistry = {
   binarySearch: { generator: binarySearch, info: binarySearchInfo, type: 'searching', code: binarySearchCode },
 };
 
-const BST_IDS = new Set(['bstInsert', 'bstSearch', 'bstDelete']);
+const BST_NO_INPUT = ['bstInorder', 'bstPreorder', 'bstPostorder', 'bstBFS', 'bstDFS'];
+const BST_IDS = new Set(['bstInsert', 'bstSearch', 'bstDelete', ...BST_NO_INPUT]);
 
 // Default seed values for the starting tree
 const DEFAULT_TREE_VALUES = [50, 30, 70, 20, 40, 60, 80];
@@ -250,6 +256,15 @@ export default function Home() {
   useEffect(() => () => clearInterval(bstIntervalRef.current), []);
 
   function handleBSTRun() {
+    if (BST_NO_INPUT.includes(selectedAlgo)) {
+      if (selectedAlgo === 'bstInorder') runBSTAnimation(bstInorder(bstRoot), bstRoot);
+      else if (selectedAlgo === 'bstPreorder') runBSTAnimation(bstPreorder(bstRoot), bstRoot);
+      else if (selectedAlgo === 'bstPostorder') runBSTAnimation(bstPostorder(bstRoot), bstRoot);
+      else if (selectedAlgo === 'bstBFS') runBSTAnimation(bstBFS(bstRoot), bstRoot);
+      else if (selectedAlgo === 'bstDFS') runBSTAnimation(bstDFS(bstRoot), bstRoot);
+      return;
+    }
+
     const raw = bstInput.trim();
     const val = parseInt(raw, 10);
     if (isNaN(val) || val < 1 || val > 999) return;
@@ -326,6 +341,11 @@ export default function Home() {
     bstInsert: 'Insert',
     bstSearch: 'Search',
     bstDelete: 'Delete',
+    bstInorder: 'Run Inorder',
+    bstPreorder: 'Run Preorder',
+    bstPostorder: 'Run Postorder',
+    bstBFS: 'Run BFS',
+    bstDFS: 'Run DFS',
   }[selectedAlgo] || '';
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -340,7 +360,7 @@ export default function Home() {
         <Sidebar selected={selectedAlgo} onSelect={handleSelectAlgo} />
 
         {/* Center: Visualizer + Controls */}
-        <main className="flex-1 flex flex-col min-h-0 bg-[#0a0e1a]">
+        <main className="flex-1 flex flex-col min-h-0 bg-zinc-950">
 
           {/* ── BST Branch ─────────────────────────────────────────── */}
           {isBST ? (
@@ -350,25 +370,27 @@ export default function Home() {
               />
 
               {/* BST Controls */}
-              <div className="shrink-0 bg-[#0c1022] border-t border-slate-800 px-4 py-3 flex flex-wrap items-center gap-3">
+              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
                 {/* Value input */}
-                <input
-                  type="number"
-                  value={bstInput}
-                  onChange={(e) => setBstInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleBSTRun()}
-                  placeholder="Enter value (1-999)"
-                  className="w-44 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
-                  min={1}
-                  max={999}
-                  disabled={bstRunning}
-                />
+                {!BST_NO_INPUT.includes(selectedAlgo) && (
+                  <input
+                    type="number"
+                    value={bstInput}
+                    onChange={(e) => setBstInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleBSTRun()}
+                    placeholder="Enter value (1-999)"
+                    className="w-44 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
+                    min={1}
+                    max={999}
+                    disabled={bstRunning}
+                  />
+                )}
 
                 {/* Run operation button */}
                 <button
                   onClick={handleBSTRun}
-                  disabled={bstRunning || !bstInput.trim()}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex items-center gap-2"
+                  disabled={bstRunning || (!BST_NO_INPUT.includes(selectedAlgo) && !bstInput.trim())}
+                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <polygon points="5,3 19,12 5,21" />
@@ -380,7 +402,7 @@ export default function Home() {
                 {bstRunning ? (
                   <button
                     onClick={handleBSTPause}
-                    className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium transition-colors flex items-center gap-2"
+                    className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                       <rect x="5" y="3" width="4" height="18" />
@@ -391,7 +413,7 @@ export default function Home() {
                 ) : bstGenRef.current && !bstDone ? (
                   <button
                     onClick={handleBSTStart}
-                    className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors flex items-center gap-2"
+                    className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="5,3 19,12 5,21" />
@@ -404,7 +426,7 @@ export default function Home() {
                 <button
                   onClick={handleBSTStep}
                   disabled={bstRunning || !bstGenRef.current || bstDone}
-                  className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex items-center gap-2"
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <polygon points="5,3 15,12 5,21" />
@@ -416,7 +438,7 @@ export default function Home() {
                 {/* Reset */}
                 <button
                   onClick={handleBSTReset}
-                  className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-colors flex items-center gap-2"
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="1,4 1,10 7,10" />
@@ -426,28 +448,24 @@ export default function Home() {
                 </button>
 
                 {/* Divider */}
-                <div className="w-px h-8 bg-slate-700 mx-1" />
+                <div className="w-px h-6 bg-zinc-800 mx-2" />
 
                 {/* Speed */}
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-400 whitespace-nowrap">Speed</span>
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
                   <input
                     type="range"
                     min="10"
                     max="500"
                     value={510 - speed}
                     onChange={(e) => setSpeed(510 - Number(e.target.value))}
-                    className="w-28 accent-indigo-500"
+                    className="w-24 accent-zinc-400"
                   />
-                  <span className="text-xs text-slate-500 font-mono w-12">{speed}ms</span>
+                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
                 </div>
 
-                <div className="ml-auto text-xs text-slate-600">
-                  Tree has{' '}
-                  <span className="text-slate-400 font-mono">
-                    {countTreeNodes(bstRoot)}
-                  </span>{' '}
-                  nodes
+                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
+                  Tree: <span className="text-zinc-300 font-mono font-medium">{countTreeNodes(bstRoot)}</span> nodes
                 </div>
               </div>
             </>
@@ -482,25 +500,25 @@ export default function Home() {
         {/* Right Panel with Toggle */}
         <div className="relative flex flex-col">
           {/* Toggle Button */}
-          <div className="absolute top-4 -left-12 z-10">
+          <div className="absolute top-4 -left-10 z-10 w-10">
             <button
               onClick={() => setShowCodePanel(!showCodePanel)}
-              className="flex flex-col items-center gap-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors group"
+              className="flex flex-col items-center justify-center gap-1 w-10 py-3 bg-zinc-900 hover:bg-zinc-800 border-y border-l border-zinc-800/50 rounded-l-md transition-colors group cursor-pointer"
               title={showCodePanel ? 'Show AI Chat' : 'Show Code'}
             >
               {showCodePanel ? (
                 <>
-                  <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-zinc-500 group-hover:text-zinc-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
-                  <span className="text-[9px] text-slate-500 group-hover:text-slate-400">AI</span>
+                  <span className="text-[10px] font-medium text-zinc-600 group-hover:text-zinc-400">AI</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5 text-slate-400 group-hover:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-zinc-500 group-hover:text-zinc-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                   </svg>
-                  <span className="text-[9px] text-slate-500 group-hover:text-slate-400">Code</span>
+                  <span className="text-[10px] font-medium text-zinc-600 group-hover:text-zinc-400">Code</span>
                 </>
               )}
             </button>
@@ -510,7 +528,7 @@ export default function Home() {
           {showCodePanel ? (
             <CodePanel
               code={isBST ? bstCode : currentAlgo.code}
-              activeLine={frame?.activeLine}
+              activeLine={isBST ? bstFrame?.activeLine : frame?.activeLine}
             />
           ) : (
             <AiPanel />

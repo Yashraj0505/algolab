@@ -1,24 +1,18 @@
 import { motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 
-/**
- * CodePanel — displays algorithm code with active line highlighting
- * 
- * Props:
- *  - code: string - the algorithm code to display
- *  - activeLine: number - the currently executing line (1-indexed)
- *  - language: string - programming language for syntax
- */
-export default function CodePanel({ code = '', activeLine = null, language = 'javascript' }) {
+export default function CodePanel({ code = '', activeLine = null }) {
+  const containerRef = useRef(null);
   const activeLineRef = useRef(null);
 
-  // Auto-scroll to active line
   useEffect(() => {
-    if (activeLineRef.current) {
-      activeLineRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
+    if (activeLineRef.current && containerRef.current) {
+      const container = containerRef.current;
+      const el = activeLineRef.current;
+      const elTop = el.offsetTop;
+      const elHeight = el.offsetHeight;
+      const containerHeight = container.clientHeight;
+      container.scrollTop = elTop - containerHeight / 2 + elHeight / 2;
     }
   }, [activeLine]);
 
@@ -34,14 +28,12 @@ export default function CodePanel({ code = '', activeLine = null, language = 'ja
 
   return (
     <div className="w-80 bg-zinc-950 border-l border-zinc-800/50 flex flex-col">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-zinc-800/50">
         <h3 className="text-sm font-semibold text-zinc-200">Algorithm Code</h3>
         <p className="text-[11px] text-zinc-500 mt-0.5">Live execution trace</p>
       </div>
 
-      {/* Code Display */}
-      <div className="flex-1 overflow-y-auto p-4 font-mono text-xs">
+      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 font-mono text-xs">
         {lines.map((line, index) => {
           const lineNumber = index + 1;
           const isActive = lineNumber === activeLine;
@@ -57,19 +49,10 @@ export default function CodePanel({ code = '', activeLine = null, language = 'ja
               }}
               className="flex gap-3 py-0.5 px-2 -mx-2 rounded-r border-l-2"
             >
-              {/* Line Number */}
-              <span
-                className={`select-none w-6 text-right shrink-0 ${isActive ? 'text-zinc-400 font-bold' : 'text-zinc-600'
-                  }`}
-              >
+              <span className={`select-none w-6 text-right shrink-0 ${isActive ? 'text-zinc-400 font-bold' : 'text-zinc-600'}`}>
                 {lineNumber}
               </span>
-
-              {/* Code Line */}
-              <span
-                className={`${isActive ? 'text-zinc-100 font-medium' : 'text-zinc-400'
-                  }`}
-              >
+              <span className={isActive ? 'text-zinc-100 font-medium' : 'text-zinc-400'}>
                 {line || ' '}
               </span>
             </motion.div>
@@ -77,7 +60,6 @@ export default function CodePanel({ code = '', activeLine = null, language = 'ja
         })}
       </div>
 
-      {/* Active Line Indicator */}
       {activeLine && (
         <div className="px-4 py-2 border-t border-zinc-800/50 bg-zinc-900">
           <div className="flex items-center gap-2">

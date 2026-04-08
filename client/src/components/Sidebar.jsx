@@ -38,6 +38,36 @@ const algorithms = [
       { id: 'lcs', name: 'LCS' },
     ],
   },
+  {
+    category: 'AVL Tree',
+    icon: '⚖️',
+    items: [
+      { id: 'avlInsert', name: 'AVL Insert' },
+      { id: 'avlDelete', name: 'AVL Delete' },
+    ],
+  },
+  {
+    category: 'Red-Black Tree',
+    icon: '🔴',
+    items: [
+      { id: 'rbtInsert', name: 'RBT Insert' },
+      { id: 'rbtDelete', name: 'RBT Delete' },
+      { id: 'rbtSearch', name: 'RBT Search' },
+    ],
+  },
+  {
+    category: 'Heap',
+    icon: '🔺',
+    items: [
+      { id: 'minHeapInsert', name: 'Min Heap Insert' },
+      { id: 'minHeapExtract', name: 'Min Heap Extract' },
+      { id: 'maxHeapInsert', name: 'Max Heap Insert' },
+      { id: 'maxHeapExtract', name: 'Max Heap Extract' },
+      { id: 'heapBuildMin', name: 'Build Min Heap' },
+      { id: 'heapBuildMax', name: 'Build Max Heap' },
+      { id: 'heapSort', name: 'Heap Sort' },
+    ],
+  },
 ];
 
 /**

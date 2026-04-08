@@ -4,6 +4,9 @@ import Sidebar from '../components/Sidebar';
 import Visualizer from '../components/Visualizer';
 import BSTVisualizer from '../components/BSTVisualizer';
 import LCSVisualizer from '../components/LCSVisualizer';
+import AVLVisualizer from '../components/AVLVisualizer';
+import RBTVisualizer from '../components/RBTVisualizer';
+import HeapVisualizer from '../components/HeapVisualizer';
 import Controls from '../components/Controls';
 import AiPanel from '../components/AiPanel';
 import PerformanceMetrics from '../components/PerformanceMetrics';
@@ -27,8 +30,39 @@ import {
   bstDFS,
   buildBST,
   bstInfo,
-  bstCode,
+  bstCodeMap,
 } from '../algorithms/bst';
+
+// AVL imports
+import {
+  avlInsert,
+  avlDelete,
+  buildAVL,
+  avlInfo,
+  avlCodeMap,
+} from '../algorithms/avl';
+
+// RBT imports
+import {
+  rbtInsert,
+  rbtDelete,
+  rbtSearch,
+  buildRBT,
+  rbtInfo,
+  rbtCodeMap,
+} from '../algorithms/rbt';
+
+// Heap imports
+import {
+  minHeapInsert,
+  maxHeapInsert,
+  minHeapExtract,
+  maxHeapExtract,
+  heapBuild,
+  heapSort,
+  heapInfo,
+  heapCodeMap,
+} from '../algorithms/heap';
 
 // LCS import
 import { lcs, lcsInfo, lcsCode } from '../algorithms/lcs';
@@ -43,9 +77,16 @@ const algorithmRegistry = {
 
 const BST_NO_INPUT = ['bstInorder', 'bstPreorder', 'bstPostorder', 'bstBFS', 'bstDFS'];
 const BST_IDS = new Set(['bstInsert', 'bstSearch', 'bstDelete', ...BST_NO_INPUT]);
+const AVL_IDS = new Set(['avlInsert', 'avlDelete']);
+const RBT_IDS = new Set(['rbtInsert', 'rbtDelete', 'rbtSearch']);
+const HEAP_IDS = new Set(['minHeapInsert', 'maxHeapInsert', 'minHeapExtract', 'maxHeapExtract', 'heapBuildMin', 'heapBuildMax', 'heapSort']);
+const HEAP_NO_INPUT = new Set(['minHeapExtract', 'maxHeapExtract', 'heapBuildMin', 'heapBuildMax', 'heapSort']);
 
 // Default seed values for the starting tree
 const DEFAULT_TREE_VALUES = [50, 30, 70, 20, 40, 60, 80];
+const DEFAULT_AVL_VALUES = [30, 20, 40, 10, 25];
+const DEFAULT_RBT_VALUES = [10, 20, 30, 15, 25];
+const DEFAULT_HEAP_ARRAY = [40, 15, 60, 10, 30, 55, 70, 5, 20];
 
 /** Generate a random array for sorting/searching */
 function generateArray(size = 30, min = 5, max = 100) {
@@ -92,9 +133,44 @@ export default function Home() {
   const lcsGenRef = useRef(null);
   const lcsIntervalRef = useRef(null);
 
+  // ── AVL state ─────────────────────────────────────────────────────────────
+  const [avlRoot, setAvlRoot] = useState(() => buildAVL(DEFAULT_AVL_VALUES));
+  const [avlFrame, setAvlFrame] = useState(null);
+  const [avlInput, setAvlInput] = useState('');
+  const [avlRunning, setAvlRunning] = useState(false);
+  const [avlDone, setAvlDone] = useState(false);
+
+  const avlGenRef = useRef(null);
+  const avlIntervalRef = useRef(null);
+  const avlPendingRootRef = useRef(null);
+
+  // ── RBT state ─────────────────────────────────────────────────────────────
+  const [rbtRoot, setRbtRoot] = useState(() => buildRBT(DEFAULT_RBT_VALUES));
+  const [rbtFrame, setRbtFrame] = useState(null);
+  const [rbtInput, setRbtInput] = useState('');
+  const [rbtRunning, setRbtRunning] = useState(false);
+  const [rbtDone, setRbtDone] = useState(false);
+
+  const rbtGenRef = useRef(null);
+  const rbtIntervalRef = useRef(null);
+  const rbtPendingRootRef = useRef(null);
+
+  // ── Heap state ─────────────────────────────────────────────────────────────
+  const [heapArray, setHeapArray] = useState([...DEFAULT_HEAP_ARRAY]);
+  const [heapFrame, setHeapFrame] = useState(null);
+  const [heapInput, setHeapInput] = useState('');
+  const [heapRunning, setHeapRunning] = useState(false);
+  const [heapDone, setHeapDone] = useState(false);
+
+  const heapGenRef = useRef(null);
+  const heapIntervalRef = useRef(null);
+
   const isBST = BST_IDS.has(selectedAlgo);
   const isLCS = selectedAlgo === 'lcs';
-  const currentAlgo = (!isBST && !isLCS) ? algorithmRegistry[selectedAlgo] : null;
+  const isAVL = AVL_IDS.has(selectedAlgo);
+  const isRBT = RBT_IDS.has(selectedAlgo);
+  const isHeap = HEAP_IDS.has(selectedAlgo);
+  const currentAlgo = (!isBST && !isLCS && !isAVL && !isRBT && !isHeap) ? algorithmRegistry[selectedAlgo] : null;
 
   // ── Sorting/Searching helpers ─────────────────────────────────────────────
   const initGenerator = useCallback(() => {
@@ -200,11 +276,27 @@ export default function Home() {
     stopLCS();
     setLcsFrame(null);
     setLcsDone(false);
+    // Reset AVL animation
+    stopAVL();
+    setAvlFrame(null);
+    setAvlInput('');
+    setAvlDone(false);
+    // Reset RBT animation
+    stopRBT();
+    setRbtFrame(null);
+    setRbtInput('');
+    setRbtDone(false);
+    // Reset Heap
+    stopHeap();
+    setHeapArray([...DEFAULT_HEAP_ARRAY]);
+    setHeapFrame(null);
+    setHeapInput('');
+    setHeapDone(false);
   }, []); // eslint-disable-line
 
   // Auto-play loop (sorting/searching)
   useEffect(() => {
-    if (!isBST && !isLCS && isRunning) {
+    if (!isBST && !isLCS && !isAVL && !isRBT && !isHeap && isRunning) {
       if (!generatorRef.current) {
         generatorRef.current = currentAlgo.generator(array);
       }
@@ -457,10 +549,288 @@ export default function Home() {
   // Cleanup LCS intervals on unmount
   useEffect(() => () => clearInterval(lcsIntervalRef.current), []);
 
+  // ── AVL helpers ─────────────────────────────────────────────────────────────
+  function stopAVL() {
+    setAvlRunning(false);
+    clearInterval(avlIntervalRef.current);
+    avlGenRef.current = null;
+  }
+
+  function runAVLAnimation(gen) {
+    stopAVL();
+    avlGenRef.current = gen;
+    setAvlRunning(true);
+    setAvlDone(false);
+
+    avlIntervalRef.current = setInterval(() => {
+      if (!avlGenRef.current) return;
+      const { value, done } = avlGenRef.current.next();
+      if (done) {
+        clearInterval(avlIntervalRef.current);
+        setAvlRunning(false);
+        setAvlDone(true);
+        avlGenRef.current = null;
+        if (avlPendingRootRef.current) setAvlRoot(avlPendingRootRef.current);
+        return;
+      }
+      setAvlFrame(value);
+      if (value.root) avlPendingRootRef.current = value.root;
+    }, speed);
+  }
+
+  useEffect(() => {
+    if (avlDone && avlPendingRootRef.current) setAvlRoot(avlPendingRootRef.current);
+  }, [avlDone]);
+
+  useEffect(() => () => clearInterval(avlIntervalRef.current), []);
+
+  function handleAVLRun() {
+    const val = parseInt(avlInput.trim(), 10);
+    if (isNaN(val) || val < 1 || val > 999) return;
+    const gen = selectedAlgo === 'avlInsert' ? avlInsert(avlRoot, val) : avlDelete(avlRoot, val);
+    avlPendingRootRef.current = avlRoot;
+    runAVLAnimation(gen);
+  }
+
+  function handleAVLReset() {
+    stopAVL();
+    setAvlRoot(buildAVL(DEFAULT_AVL_VALUES));
+    setAvlFrame(null);
+    setAvlInput('');
+    setAvlDone(false);
+    avlPendingRootRef.current = null;
+  }
+
+  function handleAVLStep() {
+    if (!avlGenRef.current) return;
+    const { value, done } = avlGenRef.current.next();
+    if (done) {
+      setAvlRunning(false);
+      setAvlDone(true);
+      clearInterval(avlIntervalRef.current);
+      avlGenRef.current = null;
+      if (avlPendingRootRef.current) setAvlRoot(avlPendingRootRef.current);
+      return;
+    }
+    setAvlFrame(value);
+    if (value.root) avlPendingRootRef.current = value.root;
+  }
+
+  function handleAVLStart() {
+    if (!avlGenRef.current) { handleAVLRun(); return; }
+    setAvlRunning(true);
+    avlIntervalRef.current = setInterval(() => {
+      if (!avlGenRef.current) { clearInterval(avlIntervalRef.current); return; }
+      const { value, done } = avlGenRef.current.next();
+      if (done) {
+        clearInterval(avlIntervalRef.current);
+        setAvlRunning(false);
+        setAvlDone(true);
+        avlGenRef.current = null;
+        if (avlPendingRootRef.current) setAvlRoot(avlPendingRootRef.current);
+        return;
+      }
+      setAvlFrame(value);
+      if (value.root) avlPendingRootRef.current = value.root;
+    }, speed);
+  }
+
+  function handleAVLPause() {
+    setAvlRunning(false);
+    clearInterval(avlIntervalRef.current);
+  }
+
+  // ── RBT helpers ─────────────────────────────────────────────────────────────
+  function stopRBT() {
+    setRbtRunning(false);
+    clearInterval(rbtIntervalRef.current);
+    rbtGenRef.current = null;
+  }
+
+  function runRBTAnimation(gen) {
+    stopRBT();
+    rbtGenRef.current = gen;
+    setRbtRunning(true);
+    setRbtDone(false);
+
+    rbtIntervalRef.current = setInterval(() => {
+      if (!rbtGenRef.current) return;
+      const { value, done } = rbtGenRef.current.next();
+      if (done) {
+        clearInterval(rbtIntervalRef.current);
+        setRbtRunning(false);
+        setRbtDone(true);
+        rbtGenRef.current = null;
+        // value here is the generator's return value — the live tree with parent pointers
+        setRbtRoot(value ?? rbtPendingRootRef.current);
+        return;
+      }
+      setRbtFrame(value);
+      if ('root' in value) rbtPendingRootRef.current = value.root;
+    }, speed);
+  }
+
+  useEffect(() => () => clearInterval(rbtIntervalRef.current), []);
+
+  function handleRBTRun() {
+    const val = parseInt(rbtInput.trim(), 10);
+    if (isNaN(val) || val < 1 || val > 999) return;
+    rbtPendingRootRef.current = rbtRoot;
+    const gen = selectedAlgo === 'rbtInsert' ? rbtInsert(rbtRoot, val)
+      : selectedAlgo === 'rbtDelete' ? rbtDelete(rbtRoot, val)
+      : rbtSearch(rbtRoot, val);
+    runRBTAnimation(gen);
+  }
+
+  function handleRBTReset() {
+    stopRBT();
+    setRbtRoot(buildRBT(DEFAULT_RBT_VALUES));
+    setRbtFrame(null);
+    setRbtInput('');
+    setRbtDone(false);
+    rbtPendingRootRef.current = null;
+  }
+
+  function handleRBTStep() {
+    if (!rbtGenRef.current) return;
+    const { value, done } = rbtGenRef.current.next();
+    if (done) {
+      setRbtRunning(false);
+      setRbtDone(true);
+      clearInterval(rbtIntervalRef.current);
+      rbtGenRef.current = null;
+      setRbtRoot(value ?? rbtPendingRootRef.current);
+      return;
+    }
+    setRbtFrame(value);
+    if ('root' in value) rbtPendingRootRef.current = value.root;
+  }
+
+  function handleRBTStart() {
+    if (!rbtGenRef.current) { handleRBTRun(); return; }
+    setRbtRunning(true);
+    rbtIntervalRef.current = setInterval(() => {
+      if (!rbtGenRef.current) { clearInterval(rbtIntervalRef.current); return; }
+      const { value, done } = rbtGenRef.current.next();
+      if (done) {
+        clearInterval(rbtIntervalRef.current);
+        setRbtRunning(false);
+        setRbtDone(true);
+        rbtGenRef.current = null;
+        setRbtRoot(value ?? rbtPendingRootRef.current);
+        return;
+      }
+      setRbtFrame(value);
+      if ('root' in value) rbtPendingRootRef.current = value.root;
+    }, speed);
+  }
+
+  function handleRBTPause() {
+    setRbtRunning(false);
+    clearInterval(rbtIntervalRef.current);
+  }
+
+  // ── Heap helpers ─────────────────────────────────────────────────────────────
+  function stopHeap() {
+    setHeapRunning(false);
+    clearInterval(heapIntervalRef.current);
+    heapGenRef.current = null;
+  }
+
+  function runHeapAnimation(gen) {
+    stopHeap();
+    heapGenRef.current = gen;
+    setHeapRunning(true);
+    setHeapDone(false);
+
+    heapIntervalRef.current = setInterval(() => {
+      if (!heapGenRef.current) return;
+      const { value, done } = heapGenRef.current.next();
+      if (done) {
+        clearInterval(heapIntervalRef.current);
+        setHeapRunning(false);
+        setHeapDone(true);
+        heapGenRef.current = null;
+        if (value) setHeapArray(value);
+        return;
+      }
+      setHeapFrame(value);
+      if (value?.array) setHeapArray(value.array);
+    }, speed);
+  }
+
+  useEffect(() => () => clearInterval(heapIntervalRef.current), []);
+
+  function handleHeapRun() {
+    if (HEAP_NO_INPUT.has(selectedAlgo)) {
+      const gen =
+        selectedAlgo === 'minHeapExtract' ? minHeapExtract(heapArray)
+        : selectedAlgo === 'maxHeapExtract' ? maxHeapExtract(heapArray)
+        : selectedAlgo === 'heapBuildMin' ? heapBuild(heapArray, true)
+        : selectedAlgo === 'heapBuildMax' ? heapBuild(heapArray, false)
+        : heapSort(heapArray);
+      runHeapAnimation(gen);
+      return;
+    }
+    const val = parseInt(heapInput.trim(), 10);
+    if (isNaN(val) || val < 1 || val > 999) return;
+    const gen = selectedAlgo === 'minHeapInsert'
+      ? minHeapInsert(heapArray, val)
+      : maxHeapInsert(heapArray, val);
+    runHeapAnimation(gen);
+  }
+
+  function handleHeapReset() {
+    stopHeap();
+    setHeapArray([...DEFAULT_HEAP_ARRAY]);
+    setHeapFrame(null);
+    setHeapInput('');
+    setHeapDone(false);
+  }
+
+  function handleHeapStep() {
+    if (!heapGenRef.current) return;
+    const { value, done } = heapGenRef.current.next();
+    if (done) {
+      setHeapRunning(false);
+      setHeapDone(true);
+      clearInterval(heapIntervalRef.current);
+      heapGenRef.current = null;
+      if (value) setHeapArray(value);
+      return;
+    }
+    setHeapFrame(value);
+    if (value?.array) setHeapArray(value.array);
+  }
+
+  function handleHeapStart() {
+    if (!heapGenRef.current) { handleHeapRun(); return; }
+    setHeapRunning(true);
+    heapIntervalRef.current = setInterval(() => {
+      if (!heapGenRef.current) { clearInterval(heapIntervalRef.current); return; }
+      const { value, done } = heapGenRef.current.next();
+      if (done) {
+        clearInterval(heapIntervalRef.current);
+        setHeapRunning(false);
+        setHeapDone(true);
+        heapGenRef.current = null;
+        if (value) setHeapArray(value);
+        return;
+      }
+      setHeapFrame(value);
+      if (value?.array) setHeapArray(value.array);
+    }, speed);
+  }
+
+  function handleHeapPause() {
+    setHeapRunning(false);
+    clearInterval(heapIntervalRef.current);
+  }
+
   // ── Determine which info / code to show ────────────────────────────────────
-  const currentInfo = isLCS ? lcsInfo : isBST ? bstInfo : currentAlgo?.info;
-  const currentCode = isLCS ? lcsCode : isBST ? bstCode : currentAlgo?.code;
-  const currentActiveLine = isLCS ? lcsFrame?.activeLine : isBST ? bstFrame?.activeLine : frame?.activeLine;
+  const currentInfo = isHeap ? heapInfo : isRBT ? rbtInfo : isLCS ? lcsInfo : isAVL ? avlInfo : isBST ? bstInfo : currentAlgo?.info;
+  const currentCode = isHeap ? heapCodeMap[selectedAlgo] : isRBT ? rbtCodeMap[selectedAlgo] : isLCS ? lcsCode : isAVL ? avlCodeMap[selectedAlgo] : isBST ? bstCodeMap[selectedAlgo] : currentAlgo?.code;
+  const currentActiveLine = isHeap ? heapFrame?.activeLine : isRBT ? rbtFrame?.activeLine : isLCS ? lcsFrame?.activeLine : isAVL ? avlFrame?.activeLine : isBST ? bstFrame?.activeLine : frame?.activeLine;
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -574,8 +944,8 @@ export default function Home() {
                     type="range"
                     min="10"
                     max="500"
-                    value={510 - speed}
-                    onChange={(e) => setSpeed(510 - Number(e.target.value))}
+                    value={speed}
+                    onChange={(e) => setSpeed(Number(e.target.value))}
                     className="w-24 accent-zinc-400"
                   />
                   <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
@@ -583,6 +953,207 @@ export default function Home() {
 
                 <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
                   Grid: <span className="text-zinc-300 font-mono font-medium">{lcsStr1.trim().length + 1} × {lcsStr2.trim().length + 1}</span>
+                </div>
+              </div>
+            </>
+          ) : isHeap ? (
+            /* ── Heap Branch ─────────────────────────────────────────── */
+            <>
+              <HeapVisualizer
+                frame={heapFrame ?? { array: heapArray, heapSize: heapArray.length, comparing: [], swapping: [], sorted: [], heapified: [], phase: null, message: null }}
+                isMin={selectedAlgo.startsWith('min') || selectedAlgo === 'heapBuildMin'}
+              />
+              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
+                {!HEAP_NO_INPUT.has(selectedAlgo) && (
+                  <input
+                    type="number"
+                    value={heapInput}
+                    onChange={(e) => setHeapInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleHeapRun()}
+                    placeholder="Value (1-999)"
+                    className="w-36 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
+                    min={1} max={999} disabled={heapRunning}
+                  />
+                )}
+                <button
+                  onClick={handleHeapRun}
+                  disabled={heapRunning || (!HEAP_NO_INPUT.has(selectedAlgo) && !heapInput.trim())}
+                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
+                  {{
+                    minHeapInsert: 'Insert', maxHeapInsert: 'Insert',
+                    minHeapExtract: 'Extract Min', maxHeapExtract: 'Extract Max',
+                    heapBuildMin: 'Build Min Heap', heapBuildMax: 'Build Max Heap',
+                    heapSort: 'Heap Sort',
+                  }[selectedAlgo]}
+                </button>
+                {heapRunning ? (
+                  <button onClick={handleHeapPause} className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18" /><rect x="15" y="3" width="4" height="18" /></svg>
+                    Pause
+                  </button>
+                ) : heapGenRef.current && !heapDone ? (
+                  <button onClick={handleHeapStart} className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
+                    Resume
+                  </button>
+                ) : null}
+                <button
+                  onClick={handleHeapStep}
+                  disabled={heapRunning || !heapGenRef.current || heapDone}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 15,12 5,21" /><rect x="17" y="3" width="3" height="18" /></svg>
+                  Step
+                </button>
+                <button
+                  onClick={handleHeapReset}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1,4 1,10 7,10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                  Reset
+                </button>
+                <div className="w-px h-6 bg-zinc-800 mx-2" />
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
+                  <input type="range" min="10" max="500" value={510 - speed} onChange={(e) => setSpeed(510 - Number(e.target.value))} className="w-24 accent-zinc-400" />
+                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
+                </div>
+                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
+                  Size: <span className="text-zinc-300 font-mono font-medium">{heapArray.length}</span>
+                </div>
+              </div>
+            </>
+          ) : isRBT ? (
+            /* ── RBT Branch ─────────────────────────────────────────── */
+            <>
+              <RBTVisualizer
+                frame={rbtFrame ?? { root: rbtRoot, blackHeights: new Map(), highlightedNodes: [], rotatingNodes: [], recoloredNodes: [], phase: null, message: null }}
+              />
+              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
+                <input
+                  type="number"
+                  value={rbtInput}
+                  onChange={(e) => setRbtInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRBTRun()}
+                  placeholder="Enter value (1-999)"
+                  className="w-44 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
+                  min={1} max={999} disabled={rbtRunning}
+                />
+                <button
+                  onClick={handleRBTRun}
+                  disabled={rbtRunning || !rbtInput.trim()}
+                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
+                  {{ rbtInsert: 'Insert', rbtDelete: 'Delete', rbtSearch: 'Search' }[selectedAlgo]}
+                </button>
+                {rbtRunning ? (
+                  <button onClick={handleRBTPause} className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18" /><rect x="15" y="3" width="4" height="18" /></svg>
+                    Pause
+                  </button>
+                ) : rbtGenRef.current && !rbtDone ? (
+                  <button onClick={handleRBTStart} className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
+                    Resume
+                  </button>
+                ) : null}
+                <button
+                  onClick={handleRBTStep}
+                  disabled={rbtRunning || !rbtGenRef.current || rbtDone}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 15,12 5,21" /><rect x="17" y="3" width="3" height="18" /></svg>
+                  Step
+                </button>
+                <button
+                  onClick={handleRBTReset}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1,4 1,10 7,10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                  Reset Tree
+                </button>
+                <div className="w-px h-6 bg-zinc-800 mx-2" />
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
+                  <input type="range" min="10" max="500" value={510 - speed} onChange={(e) => setSpeed(510 - Number(e.target.value))} className="w-24 accent-zinc-400" />
+                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
+                </div>
+                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
+                  Tree: <span className="text-zinc-300 font-mono font-medium">{countTreeNodes(rbtRoot)}</span> nodes
+                </div>
+              </div>
+            </>
+          ) : isAVL ? (
+            /* ── AVL Branch ─────────────────────────────────────────── */
+            <>
+              <AVLVisualizer
+                frame={avlFrame ?? { root: avlRoot, balanceFactors: null, highlightedNodes: [], rotatingNodes: [], unbalancedNode: null, newNodeId: null, deletedId: null, phase: null, message: null }}
+              />
+
+              {/* AVL Controls */}
+              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
+                <input
+                  type="number"
+                  value={avlInput}
+                  onChange={(e) => setAvlInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAVLRun()}
+                  placeholder="Enter value (1-999)"
+                  className="w-44 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
+                  min={1} max={999}
+                  disabled={avlRunning}
+                />
+
+                <button
+                  onClick={handleAVLRun}
+                  disabled={avlRunning || !avlInput.trim()}
+                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
+                  {selectedAlgo === 'avlInsert' ? 'Insert' : 'Delete'}
+                </button>
+
+                {avlRunning ? (
+                  <button onClick={handleAVLPause} className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18" /><rect x="15" y="3" width="4" height="18" /></svg>
+                    Pause
+                  </button>
+                ) : avlGenRef.current && !avlDone ? (
+                  <button onClick={handleAVLStart} className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
+                    Resume
+                  </button>
+                ) : null}
+
+                <button
+                  onClick={handleAVLStep}
+                  disabled={avlRunning || !avlGenRef.current || avlDone}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 15,12 5,21" /><rect x="17" y="3" width="3" height="18" /></svg>
+                  Step
+                </button>
+
+                <button
+                  onClick={handleAVLReset}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1,4 1,10 7,10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                  Reset Tree
+                </button>
+
+                <div className="w-px h-6 bg-zinc-800 mx-2" />
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
+                  <input type="range" min="10" max="500" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="w-24 accent-zinc-400" />
+                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
+                </div>
+
+                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
+                  Tree: <span className="text-zinc-300 font-mono font-medium">{countTreeNodes(avlRoot)}</span> nodes
                 </div>
               </div>
             </>
@@ -681,8 +1252,8 @@ export default function Home() {
                     type="range"
                     min="10"
                     max="500"
-                    value={510 - speed}
-                    onChange={(e) => setSpeed(510 - Number(e.target.value))}
+                    value={speed}
+                    onChange={(e) => setSpeed(Number(e.target.value))}
                     className="w-24 accent-zinc-400"
                   />
                   <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>

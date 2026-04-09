@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import Visualizer from '../components/Visualizer';
 import BSTVisualizer from '../components/BSTVisualizer';
 import LCSVisualizer from '../components/LCSVisualizer';
+import GraphVisualizer from '../components/GraphVisualizer';
 import Controls from '../components/Controls';
 import AiPanel from '../components/AiPanel';
 import PerformanceMetrics from '../components/PerformanceMetrics';
@@ -33,6 +34,14 @@ import {
 // LCS import
 import { lcs, lcsInfo, lcsCode } from '../algorithms/lcs';
 
+// Graph imports
+import {
+  dijkstra, dijkstraInfo, dijkstraCode,
+  DEFAULT_GRAPH_NODES, DEFAULT_GRAPH_EDGES
+} from '../algorithms/dijkstra';
+import { kruskal, kruskalInfo, kruskalCode } from '../algorithms/kruskal';
+import { topoSort, topoSortInfo, topoSortCode, TOPO_NODES, TOPO_EDGES } from '../algorithms/topoSort';
+
 // ─── Algorithm registry (sorting / searching only) ───────────────────────────
 const algorithmRegistry = {
   bubbleSort: { generator: bubbleSort, info: bubbleSortInfo, type: 'sorting', code: bubbleSortCode },
@@ -43,6 +52,13 @@ const algorithmRegistry = {
 
 const BST_NO_INPUT = ['bstInorder', 'bstPreorder', 'bstPostorder', 'bstBFS', 'bstDFS'];
 const BST_IDS = new Set(['bstInsert', 'bstSearch', 'bstDelete', ...BST_NO_INPUT]);
+const GRAPH_IDS = new Set(['dijkstra', 'kruskal', 'topoSort']);
+
+const graphRegistry = {
+  dijkstra:  { generator: () => dijkstra(DEFAULT_GRAPH_NODES, DEFAULT_GRAPH_EDGES, 'A'),  info: dijkstraInfo,  code: dijkstraCode,  type: 'dijkstra' },
+  kruskal:   { generator: () => kruskal(DEFAULT_GRAPH_NODES, DEFAULT_GRAPH_EDGES),          info: kruskalInfo,   code: kruskalCode,   type: 'kruskal'  },
+  topoSort:  { generator: () => topoSort(TOPO_NODES, TOPO_EDGES),                           info: topoSortInfo,  code: topoSortCode,  type: 'topoSort' },
+};
 
 // Default seed values for the starting tree
 const DEFAULT_TREE_VALUES = [50, 30, 70, 20, 40, 60, 80];
@@ -92,9 +108,18 @@ export default function Home() {
   const lcsGenRef = useRef(null);
   const lcsIntervalRef = useRef(null);
 
+  // ── Graph state ────────────────────────────────────────────────────────────
+  const [graphFrame, setGraphFrame] = useState(null);
+  const [graphRunning, setGraphRunning] = useState(false);
+  const [graphDone, setGraphDone] = useState(false);
+
+  const graphGenRef = useRef(null);
+  const graphIntervalRef = useRef(null);
+
   const isBST = BST_IDS.has(selectedAlgo);
   const isLCS = selectedAlgo === 'lcs';
-  const currentAlgo = (!isBST && !isLCS) ? algorithmRegistry[selectedAlgo] : null;
+  const isGraph = GRAPH_IDS.has(selectedAlgo);
+  const currentAlgo = (!isBST && !isLCS && !isGraph) ? algorithmRegistry[selectedAlgo] : null;
 
   // ── Sorting/Searching helpers ─────────────────────────────────────────────
   const initGenerator = useCallback(() => {
@@ -200,11 +225,15 @@ export default function Home() {
     stopLCS();
     setLcsFrame(null);
     setLcsDone(false);
+    // Reset Graph animation
+    stopGraph();
+    setGraphFrame(null);
+    setGraphDone(false);
   }, []); // eslint-disable-line
 
   // Auto-play loop (sorting/searching)
   useEffect(() => {
-    if (!isBST && !isLCS && isRunning) {
+    if (!isBST && !isLCS && !isGraph && isRunning) {
       if (!generatorRef.current) {
         generatorRef.current = currentAlgo.generator(array);
       }
@@ -457,10 +486,91 @@ export default function Home() {
   // Cleanup LCS intervals on unmount
   useEffect(() => () => clearInterval(lcsIntervalRef.current), []);
 
+  // ── Graph helpers ──────────────────────────────────────────────────────────
+  function stopGraph() {
+    setGraphRunning(false);
+    clearInterval(graphIntervalRef.current);
+    graphGenRef.current = null;
+  }
+
+  function handleGraphRun() {
+    stopGraph();
+    const entry = graphRegistry[selectedAlgo];
+    if (!entry) return;
+    const gen = entry.generator();
+    graphGenRef.current = gen;
+    setGraphRunning(true);
+    setGraphDone(false);
+    setGraphFrame(null);
+
+    graphIntervalRef.current = setInterval(() => {
+      if (!graphGenRef.current) return;
+      const { value, done } = graphGenRef.current.next();
+      if (done) {
+        clearInterval(graphIntervalRef.current);
+        setGraphRunning(false);
+        setGraphDone(true);
+        graphGenRef.current = null;
+        return;
+      }
+      setGraphFrame(value);
+    }, speed);
+  }
+
+  function handleGraphStart() {
+    if (!graphGenRef.current) { handleGraphRun(); return; }
+    setGraphRunning(true);
+    graphIntervalRef.current = setInterval(() => {
+      if (!graphGenRef.current) { clearInterval(graphIntervalRef.current); return; }
+      const { value, done } = graphGenRef.current.next();
+      if (done) {
+        clearInterval(graphIntervalRef.current);
+        setGraphRunning(false);
+        setGraphDone(true);
+        graphGenRef.current = null;
+        return;
+      }
+      setGraphFrame(value);
+    }, speed);
+  }
+
+  function handleGraphPause() {
+    setGraphRunning(false);
+    clearInterval(graphIntervalRef.current);
+  }
+
+  function handleGraphStep() {
+    if (!graphGenRef.current) {
+      const entry = graphRegistry[selectedAlgo];
+      if (!entry) return;
+      graphGenRef.current = entry.generator();
+      setGraphDone(false);
+    }
+    const { value, done } = graphGenRef.current.next();
+    if (done) {
+      setGraphRunning(false);
+      setGraphDone(true);
+      clearInterval(graphIntervalRef.current);
+      graphGenRef.current = null;
+      return;
+    }
+    setGraphFrame(value);
+  }
+
+  function handleGraphReset() {
+    stopGraph();
+    setGraphFrame(null);
+    setGraphDone(false);
+  }
+
+  // Cleanup graph interval on unmount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => clearInterval(graphIntervalRef.current), []);
+
   // ── Determine which info / code to show ────────────────────────────────────
-  const currentInfo = isLCS ? lcsInfo : isBST ? bstInfo : currentAlgo?.info;
-  const currentCode = isLCS ? lcsCode : isBST ? bstCode : currentAlgo?.code;
-  const currentActiveLine = isLCS ? lcsFrame?.activeLine : isBST ? bstFrame?.activeLine : frame?.activeLine;
+  const currentInfo = isGraph ? graphRegistry[selectedAlgo]?.info : isLCS ? lcsInfo : isBST ? bstInfo : currentAlgo?.info;
+  const currentCode = isGraph ? graphRegistry[selectedAlgo]?.code : isLCS ? lcsCode : isBST ? bstCode : currentAlgo?.code;
+  const currentActiveLine = isGraph ? graphFrame?.activeLine : isLCS ? lcsFrame?.activeLine : isBST ? bstFrame?.activeLine : frame?.activeLine;
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -690,6 +800,103 @@ export default function Home() {
 
                 <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
                   Tree: <span className="text-zinc-300 font-mono font-medium">{countTreeNodes(bstRoot)}</span> nodes
+                </div>
+              </div>
+            </>
+          ) : isGraph ? (
+            /* ── Graph Branch ──────────────────────────────────────── */
+            <>
+              <GraphVisualizer
+                frame={graphFrame}
+                algoType={graphRegistry[selectedAlgo]?.type}
+                defaultNodes={selectedAlgo === 'topoSort' ? TOPO_NODES : DEFAULT_GRAPH_NODES}
+                defaultEdges={selectedAlgo === 'topoSort' ? TOPO_EDGES : DEFAULT_GRAPH_EDGES}
+              />
+
+              {/* Graph Controls */}
+              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
+                {/* Run button */}
+                <button
+                  onClick={handleGraphRun}
+                  disabled={graphRunning}
+                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 19,12 5,21" />
+                  </svg>
+                  Run
+                </button>
+
+                {/* Pause / Resume */}
+                {graphRunning ? (
+                  <button
+                    onClick={handleGraphPause}
+                    className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="5" y="3" width="4" height="18" />
+                      <rect x="15" y="3" width="4" height="18" />
+                    </svg>
+                    Pause
+                  </button>
+                ) : graphGenRef.current && !graphDone ? (
+                  <button
+                    onClick={handleGraphStart}
+                    className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5,3 19,12 5,21" />
+                    </svg>
+                    Resume
+                  </button>
+                ) : null}
+
+                {/* Step */}
+                <button
+                  onClick={handleGraphStep}
+                  disabled={graphRunning || graphDone}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 15,12 5,21" />
+                    <rect x="17" y="3" width="3" height="18" />
+                  </svg>
+                  Step
+                </button>
+
+                {/* Reset */}
+                <button
+                  onClick={handleGraphReset}
+                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="1,4 1,10 7,10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  Reset
+                </button>
+
+                {/* Divider */}
+                <div className="w-px h-6 bg-zinc-800 mx-2" />
+
+                {/* Speed */}
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
+                  <input
+                    type="range"
+                    min="10"
+                    max="1000"
+                    value={1010 - speed}
+                    onChange={(e) => setSpeed(1010 - Number(e.target.value))}
+                    className="w-24 accent-zinc-400"
+                  />
+                  <span className="text-xs text-zinc-500 font-mono w-12">{speed}ms</span>
+                </div>
+
+                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
+                  {selectedAlgo === 'dijkstra' && <span>Nodes: <span className="text-zinc-300 font-mono">{DEFAULT_GRAPH_NODES.length}</span> | Edges: <span className="text-zinc-300 font-mono">{DEFAULT_GRAPH_EDGES.length}</span></span>}
+                  {selectedAlgo === 'kruskal'  && <span>Nodes: <span className="text-zinc-300 font-mono">{DEFAULT_GRAPH_NODES.length}</span> | Edges: <span className="text-zinc-300 font-mono">{DEFAULT_GRAPH_EDGES.length}</span></span>}
+                  {selectedAlgo === 'topoSort' && <span>Nodes: <span className="text-zinc-300 font-mono">6</span> | Directed Acyclic Graph</span>}
                 </div>
               </div>
             </>

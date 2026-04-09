@@ -38,6 +38,15 @@ const algorithms = [
       { id: 'lcs', name: 'LCS' },
     ],
   },
+  {
+    category: 'Graphs',
+    icon: '🕸️',
+    items: [
+      { id: 'dijkstra',  name: "Dijkstra's SSSP" },
+      { id: 'kruskal',   name: "Kruskal's MST" },
+      { id: 'topoSort',  name: 'Topological Sort' },
+    ],
+  },
 ];
 
 /**

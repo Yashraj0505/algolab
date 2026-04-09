@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import AiPanel from '../components/AiPanel';
@@ -22,8 +23,17 @@ import AVLSection from '../sections/AVLSection';
 import RBTSection from '../sections/RBTSection';
 import HeapSection from '../sections/HeapSection';
 
+const SECTION_DEFAULT = {
+  trees: 'bstInsert',
+  dp:    'lcs',
+  graphs: null,
+  strings: 'bubbleSort',
+};
+
 export default function Home() {
-  const [selectedAlgo, setSelectedAlgo] = useState('bubbleSort');
+  const [searchParams] = useSearchParams();
+  const section = searchParams.get('section') || 'strings';
+  const [selectedAlgo, setSelectedAlgo] = useState(() => SECTION_DEFAULT[section] ?? 'bubbleSort');
   const [showCodePanel, setShowCodePanel] = useState(true);
   const [speed, setSpeed] = useState(100);
 
@@ -87,14 +97,18 @@ export default function Home() {
     : sorting.frame?.activeLine;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen">
       <Navbar algorithmInfo={currentInfo} />
 
       <div className="flex flex-1 min-h-0">
-        <Sidebar selected={selectedAlgo} onSelect={handleSelectAlgo} />
+        <Sidebar selected={selectedAlgo} onSelect={handleSelectAlgo} section={section} />
 
         <main className="flex-1 flex flex-col min-h-0 bg-zinc-950">
-          {isHeap ? (
+          {section === 'graphs' ? (
+            <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
+              Graph algorithms coming soon
+            </div>
+          ) : isHeap ? (
             <HeapSection
               selectedAlgo={selectedAlgo}
               heapArray={heap.heapArray} heapFrame={heap.heapFrame}
@@ -214,7 +228,7 @@ export default function Home() {
           {showCodePanel ? (
             <CodePanel code={currentCode} activeLine={currentActiveLine} />
           ) : (
-            <AiPanel />
+            <AiPanel selectedAlgo={selectedAlgo} />
           )}
         </div>
       </div>

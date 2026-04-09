@@ -2,21 +2,26 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
-/**
- * AiPanel — right-side AI tutor chat panel.
- * Sends prompts to POST /api/ai and displays responses.
- */
-export default function AiPanel() {
+export default function AiPanel({ selectedAlgo }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content:
-        '👋 Hi! I\'m your Algorithm Tutor.\n\nAsk me anything about algorithms — for example:\n• "Explain merge sort"\n• "What is time complexity?"\n• "Give me a real-life analogy for binary search"',
+      content: `👋 Now viewing **${selectedAlgo}**. Ask me anything about it!`,
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
+
+  // Reset chat when algorithm changes
+  useEffect(() => {
+    setMessages([
+      {
+        role: 'assistant',
+        content: `👋 Now viewing **${selectedAlgo}**. Ask me anything about it!`,
+      },
+    ]);
+  }, [selectedAlgo]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -27,13 +32,17 @@ export default function AiPanel() {
     const prompt = input.trim();
     if (!prompt || loading) return;
 
-    // Add user message
-    setMessages((prev) => [...prev, { role: 'user', content: prompt }]);
+    const updatedMessages = [...messages, { role: 'user', content: prompt }];
+    setMessages(updatedMessages);
     setInput('');
     setLoading(true);
 
     try {
-      const res = await axios.post('/api/ai', { prompt });
+      const res = await axios.post('/api/ai', {
+        prompt,
+        selectedAlgo,
+        history: updatedMessages.slice(1), // skip the initial greeting
+      });
       setMessages((prev) => [...prev, { role: 'assistant', content: res.data.reply }]);
     } catch (err) {
       const errorMsg =
@@ -55,14 +64,14 @@ export default function AiPanel() {
   };
 
   return (
-    <aside className="w-80 shrink-0 bg-[#0c1022] border-l border-slate-800 flex flex-col">
+    <aside className="w-80 shrink-0 bg-zinc-950 border-l border-zinc-800/50 flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-800 shrink-0">
-        <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-zinc-800/50 shrink-0">
+        <h2 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           AI Tutor
         </h2>
-        <p className="text-[10px] text-slate-500 mt-0.5">Powered by LLaMA 3 via Groq</p>
+        <p className="text-[10px] text-zinc-500 mt-0.5">Powered by LLaMA 3 via Groq · {selectedAlgo}</p>
       </div>
 
       {/* Messages */}
@@ -81,8 +90,8 @@ export default function AiPanel() {
                 className={`
                   max-w-[95%] rounded-xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap
                   ${msg.role === 'user'
-                    ? 'bg-indigo-600/30 text-indigo-100 border border-indigo-500/20'
-                    : 'bg-slate-800/60 text-slate-300 border border-slate-700/40'
+                    ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/50'
+                    : 'bg-zinc-900 text-zinc-300 border border-zinc-800/50'
                   }
                 `}
               >
@@ -92,15 +101,14 @@ export default function AiPanel() {
           ))}
         </AnimatePresence>
 
-        {/* Loading indicator */}
         {loading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex justify-start"
           >
-            <div className="bg-slate-800/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-slate-400 cursor-blink">
-              Thinking
+            <div className="bg-zinc-900 border border-zinc-800/50 rounded-xl px-3 py-2 text-sm text-zinc-500">
+              Thinking...
             </div>
           </motion.div>
         )}
@@ -109,20 +117,20 @@ export default function AiPanel() {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-slate-800 shrink-0">
+      <div className="px-4 py-3 border-t border-zinc-800/50 bg-zinc-900 shrink-0">
         <div className="flex gap-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about algorithms..."
+            placeholder={`Ask about ${selectedAlgo}...`}
             rows={1}
-            className="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+            className="flex-1 bg-zinc-950 border border-zinc-800/50 rounded-md px-3 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600"
           />
           <button
             onClick={handleSend}
             disabled={loading || !input.trim()}
-            className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors shrink-0"
+            className="px-3 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors shrink-0 shadow-sm"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="22" y1="2" x2="11" y2="13" />

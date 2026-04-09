@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 
 const algorithms = [
   {
+    section: 'strings',
     category: 'Sorting',
     icon: '⇅',
     items: [
@@ -11,6 +12,7 @@ const algorithms = [
     ],
   },
   {
+    section: 'strings',
     category: 'Searching',
     icon: '⌕',
     items: [
@@ -18,6 +20,7 @@ const algorithms = [
     ],
   },
   {
+    section: 'trees',
     category: 'BST',
     icon: '🌳',
     items: [
@@ -32,6 +35,7 @@ const algorithms = [
     ],
   },
   {
+    section: 'dp',
     category: 'Dynamic Programming',
     icon: '📊',
     items: [
@@ -41,6 +45,7 @@ const algorithms = [
     ],
   },
   {
+    section: 'trees',
     category: 'AVL Tree',
     icon: '⚖️',
     items: [
@@ -49,6 +54,7 @@ const algorithms = [
     ],
   },
   {
+    section: 'trees',
     category: 'Red-Black Tree',
     icon: '🔴',
     items: [
@@ -58,6 +64,7 @@ const algorithms = [
     ],
   },
   {
+    section: 'trees',
     category: 'Heap',
     icon: '🔺',
     items: [
@@ -75,7 +82,9 @@ const algorithms = [
 /**
  * Sidebar — left panel listing algorithms grouped by category.
  */
-export default function Sidebar({ selected, onSelect }) {
+export default function Sidebar({ selected, onSelect, section }) {
+  const visible = algorithms.filter(g => g.section === (section || 'strings'));
+
   return (
     <aside className="w-56 shrink-0 bg-zinc-950 border-r border-zinc-800/50 flex flex-col overflow-y-auto">
       <div className="p-4">
@@ -83,7 +92,7 @@ export default function Sidebar({ selected, onSelect }) {
           Algorithms
         </h2>
 
-        {algorithms.map((group) => (
+        {visible.map((group) => (
           <div key={group.category} className="mb-6">
             <div className="flex items-center gap-2 mb-2 px-1">
               <span className="text-sm text-zinc-400">{group.icon}</span>

@@ -54,7 +54,7 @@ export default function LCSVisualizer({ frame }) {
         // Backtrack path
         if (btSet.has(key) && phase !== 'filling') {
             if (matchCells.has(key)) {
-                return { bg: '#166534', text: '#bbf7d0', border: '#22c55e' };
+                return { bg: '#92400e', text: '#fde68a', border: '#f59e0b' };
             }
             return { bg: '#581c87', text: '#e9d5ff', border: '#7c3aed' };
         }
@@ -228,7 +228,7 @@ export default function LCSVisualizer({ frame }) {
                 <Legend color="#27272a" label="Filled" />
                 <Legend color="#14532d" label="Match (↗)" />
                 <Legend color="#581c87" label="Backtrack" />
-                <Legend color="#166534" label="LCS Cell" />
+                <Legend color="#92400e" label="LCS Cell" />
             </div>
         </div>
     );

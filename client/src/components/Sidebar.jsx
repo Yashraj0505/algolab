@@ -36,6 +36,8 @@ const algorithms = [
     icon: '📊',
     items: [
       { id: 'lcs', name: 'LCS' },
+      { id: 'lis', name: 'LIS' },
+      { id: 'mcm', name: 'Matrix Chain Mult.' },
     ],
   },
   {

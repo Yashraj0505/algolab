@@ -1,1300 +1,192 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import Visualizer from '../components/Visualizer';
-import BSTVisualizer from '../components/BSTVisualizer';
-import LCSVisualizer from '../components/LCSVisualizer';
-import AVLVisualizer from '../components/AVLVisualizer';
-import RBTVisualizer from '../components/RBTVisualizer';
-import HeapVisualizer from '../components/HeapVisualizer';
-import Controls from '../components/Controls';
 import AiPanel from '../components/AiPanel';
-import PerformanceMetrics from '../components/PerformanceMetrics';
 import CodePanel from '../components/CodePanel';
 
-// Algorithm imports — sorting / searching
-import { bubbleSort, bubbleSortInfo, bubbleSortCode } from '../algorithms/bubbleSort';
-import { mergeSort, mergeSortInfo, mergeSortCode } from '../algorithms/mergeSort';
-import { quickSort, quickSortInfo, quickSortCode } from '../algorithms/quickSort';
-import { binarySearch, binarySearchInfo, binarySearchCode } from '../algorithms/binarySearch';
+import { algorithmRegistry, useSortingSearch } from '../hooks/useSortingSearch';
+import { useBST, BST_IDS, bstInfo, bstCode } from '../hooks/useBST';
+import { useLCS, lcsInfo, lcsCode } from '../hooks/useLCS';
+import { useLIS, lisInfo, lisCode } from '../hooks/useLIS';
+import { useMCM, mcmInfo, mcmCode } from '../hooks/useMCM';
+import { useAVL, AVL_IDS, avlInfo, avlCodeMap } from '../hooks/useAVL';
+import { useRBT, RBT_IDS, rbtInfo, rbtCodeMap } from '../hooks/useRBT';
+import { useHeap, HEAP_IDS, heapInfo, heapCodeMap } from '../hooks/useHeap';
 
-// BST imports
-import {
-  bstInsert,
-  bstSearch,
-  bstDelete,
-  bstInorder,
-  bstPreorder,
-  bstPostorder,
-  bstBFS,
-  bstDFS,
-  buildBST,
-  bstInfo,
-  bstCodeMap,
-} from '../algorithms/bst';
+import SortingSection from '../sections/SortingSection';
+import BSTSection from '../sections/BSTSection';
+import LCSSection from '../sections/LCSSection';
+import LISSection from '../sections/LISSection';
+import MCMSection from '../sections/MCMSection';
+import AVLSection from '../sections/AVLSection';
+import RBTSection from '../sections/RBTSection';
+import HeapSection from '../sections/HeapSection';
 
-// AVL imports
-import {
-  avlInsert,
-  avlDelete,
-  buildAVL,
-  avlInfo,
-  avlCodeMap,
-} from '../algorithms/avl';
-
-// RBT imports
-import {
-  rbtInsert,
-  rbtDelete,
-  rbtSearch,
-  buildRBT,
-  rbtInfo,
-  rbtCodeMap,
-} from '../algorithms/rbt';
-
-// Heap imports
-import {
-  minHeapInsert,
-  maxHeapInsert,
-  minHeapExtract,
-  maxHeapExtract,
-  heapBuild,
-  heapSort,
-  heapInfo,
-  heapCodeMap,
-} from '../algorithms/heap';
-
-// LCS import
-import { lcs, lcsInfo, lcsCode } from '../algorithms/lcs';
-
-// ─── Algorithm registry (sorting / searching only) ───────────────────────────
-const algorithmRegistry = {
-  bubbleSort: { generator: bubbleSort, info: bubbleSortInfo, type: 'sorting', code: bubbleSortCode },
-  mergeSort: { generator: mergeSort, info: mergeSortInfo, type: 'sorting', code: mergeSortCode },
-  quickSort: { generator: quickSort, info: quickSortInfo, type: 'sorting', code: quickSortCode },
-  binarySearch: { generator: binarySearch, info: binarySearchInfo, type: 'searching', code: binarySearchCode },
-};
-
-const BST_NO_INPUT = ['bstInorder', 'bstPreorder', 'bstPostorder', 'bstBFS', 'bstDFS'];
-const BST_IDS = new Set(['bstInsert', 'bstSearch', 'bstDelete', ...BST_NO_INPUT]);
-const AVL_IDS = new Set(['avlInsert', 'avlDelete']);
-const RBT_IDS = new Set(['rbtInsert', 'rbtDelete', 'rbtSearch']);
-const HEAP_IDS = new Set(['minHeapInsert', 'maxHeapInsert', 'minHeapExtract', 'maxHeapExtract', 'heapBuildMin', 'heapBuildMax', 'heapSort']);
-const HEAP_NO_INPUT = new Set(['minHeapExtract', 'maxHeapExtract', 'heapBuildMin', 'heapBuildMax', 'heapSort']);
-
-// Default seed values for the starting tree
-const DEFAULT_TREE_VALUES = [50, 30, 70, 20, 40, 60, 80];
-const DEFAULT_AVL_VALUES = [30, 20, 40, 10, 25];
-const DEFAULT_RBT_VALUES = [10, 20, 30, 15, 25];
-const DEFAULT_HEAP_ARRAY = [40, 15, 60, 10, 30, 55, 70, 5, 20];
-
-/** Generate a random array for sorting/searching */
-function generateArray(size = 30, min = 5, max = 100) {
-  return Array.from({ length: size }, () => Math.floor(Math.random() * (max - min + 1)) + min);
-}
-
-// =============================================================================
 export default function Home() {
-  // ── Shared state ─────────────────────────────────────────────────────────
   const [selectedAlgo, setSelectedAlgo] = useState('bubbleSort');
   const [showCodePanel, setShowCodePanel] = useState(true);
-
-  // ── Sorting / Searching state ─────────────────────────────────────────────
-  const [array, setArray] = useState(() => generateArray());
-  const [frame, setFrame] = useState(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isDone, setIsDone] = useState(false);
   const [speed, setSpeed] = useState(100);
-  const [timeTaken, setTimeTaken] = useState(0);
-  const [startTime, setStartTime] = useState(null);
 
-  const generatorRef = useRef(null);
-  const intervalRef = useRef(null);
-  const timerRef = useRef(null);
-
-  // ── BST state ─────────────────────────────────────────────────────────────
-  const [bstRoot, setBstRoot] = useState(() => buildBST(DEFAULT_TREE_VALUES));
-  const [bstFrame, setBstFrame] = useState(null);
-  const [bstInput, setBstInput] = useState('');
-  const [bstRunning, setBstRunning] = useState(false);
-  const [bstDone, setBstDone] = useState(false);
-  const [bstGenRoot, setBstGenRoot] = useState(null); // root used by current generator
-
-  const bstGenRef = useRef(null);
-  const bstIntervalRef = useRef(null);
-
-  // ── LCS state ─────────────────────────────────────────────────────────────
-  const [lcsStr1, setLcsStr1] = useState('ABCBDAB');
-  const [lcsStr2, setLcsStr2] = useState('BDCAB');
-  const [lcsFrame, setLcsFrame] = useState(null);
-  const [lcsRunning, setLcsRunning] = useState(false);
-  const [lcsDone, setLcsDone] = useState(false);
-
-  const lcsGenRef = useRef(null);
-  const lcsIntervalRef = useRef(null);
-
-  // ── AVL state ─────────────────────────────────────────────────────────────
-  const [avlRoot, setAvlRoot] = useState(() => buildAVL(DEFAULT_AVL_VALUES));
-  const [avlFrame, setAvlFrame] = useState(null);
-  const [avlInput, setAvlInput] = useState('');
-  const [avlRunning, setAvlRunning] = useState(false);
-  const [avlDone, setAvlDone] = useState(false);
-
-  const avlGenRef = useRef(null);
-  const avlIntervalRef = useRef(null);
-  const avlPendingRootRef = useRef(null);
-
-  // ── RBT state ─────────────────────────────────────────────────────────────
-  const [rbtRoot, setRbtRoot] = useState(() => buildRBT(DEFAULT_RBT_VALUES));
-  const [rbtFrame, setRbtFrame] = useState(null);
-  const [rbtInput, setRbtInput] = useState('');
-  const [rbtRunning, setRbtRunning] = useState(false);
-  const [rbtDone, setRbtDone] = useState(false);
-
-  const rbtGenRef = useRef(null);
-  const rbtIntervalRef = useRef(null);
-  const rbtPendingRootRef = useRef(null);
-
-  // ── Heap state ─────────────────────────────────────────────────────────────
-  const [heapArray, setHeapArray] = useState([...DEFAULT_HEAP_ARRAY]);
-  const [heapFrame, setHeapFrame] = useState(null);
-  const [heapInput, setHeapInput] = useState('');
-  const [heapRunning, setHeapRunning] = useState(false);
-  const [heapDone, setHeapDone] = useState(false);
-
-  const heapGenRef = useRef(null);
-  const heapIntervalRef = useRef(null);
-
-  const isBST = BST_IDS.has(selectedAlgo);
-  const isLCS = selectedAlgo === 'lcs';
-  const isAVL = AVL_IDS.has(selectedAlgo);
-  const isRBT = RBT_IDS.has(selectedAlgo);
+  const isBST  = BST_IDS.has(selectedAlgo);
+  const isLCS  = selectedAlgo === 'lcs';
+  const isLIS  = selectedAlgo === 'lis';
+  const isMCM  = selectedAlgo === 'mcm';
+  const isAVL  = AVL_IDS.has(selectedAlgo);
+  const isRBT  = RBT_IDS.has(selectedAlgo);
   const isHeap = HEAP_IDS.has(selectedAlgo);
-  const currentAlgo = (!isBST && !isLCS && !isAVL && !isRBT && !isHeap) ? algorithmRegistry[selectedAlgo] : null;
+  const isSort = !isBST && !isLCS && !isLIS && !isMCM && !isAVL && !isRBT && !isHeap;
 
-  // ── Sorting/Searching helpers ─────────────────────────────────────────────
-  const initGenerator = useCallback(() => {
-    const gen = currentAlgo.generator(array);
-    generatorRef.current = gen;
-    setIsDone(false);
-    setFrame(null);
-    setTimeTaken(0);
-    setStartTime(Date.now());
-  }, [array, currentAlgo]);
+  const currentAlgo = isSort ? algorithmRegistry[selectedAlgo] : null;
 
-  const step = useCallback(() => {
-    if (!generatorRef.current) return false;
-    const { value, done } = generatorRef.current.next();
-    if (done) {
-      setIsRunning(false);
-      setIsDone(true);
-      clearInterval(intervalRef.current);
-      clearInterval(timerRef.current);
-      if (startTime) setTimeTaken(Date.now() - startTime);
-      return false;
-    }
-    setArray(value.array);
-    setFrame(value);
-    return true;
-  }, [startTime]);
-
-  const handleStart = useCallback(() => {
-    if (isDone) {
-      const newArr = generateArray();
-      setArray(newArr);
-      const gen = currentAlgo.generator(newArr);
-      generatorRef.current = gen;
-      setIsDone(false);
-      setTimeTaken(0);
-      setStartTime(Date.now());
-    } else if (!generatorRef.current) {
-      initGenerator();
-    } else if (!startTime) {
-      setStartTime(Date.now());
-    }
-    setIsRunning(true);
-  }, [isDone, currentAlgo, initGenerator, startTime]);
-
-  const handlePause = useCallback(() => {
-    setIsRunning(false);
-    clearInterval(intervalRef.current);
-    clearInterval(timerRef.current);
-    if (startTime) setTimeTaken(Date.now() - startTime);
-  }, [startTime]);
-
-  const handleReset = useCallback(() => {
-    setIsRunning(false);
-    clearInterval(intervalRef.current);
-    clearInterval(timerRef.current);
-    const newArr = generateArray();
-    setArray(newArr);
-    setFrame(null);
-    setIsDone(false);
-    setTimeTaken(0);
-    setStartTime(null);
-    generatorRef.current = null;
-  }, []);
-
-  const handleStep = useCallback(() => {
-    if (!generatorRef.current) {
-      initGenerator();
-      setTimeout(() => {
-        const gen = generatorRef.current;
-        if (!gen) return;
-        const { value, done } = gen.next();
-        if (!done) { setArray(value.array); setFrame(value); }
-        else {
-          setIsDone(true);
-          clearInterval(timerRef.current);
-          if (startTime) setTimeTaken(Date.now() - startTime);
-        }
-      }, 0);
-      return;
-    }
-    step();
-  }, [initGenerator, step, startTime]);
+  const sorting = useSortingSearch(selectedAlgo, speed, isSort);
+  const bst     = useBST(selectedAlgo, speed);
+  const lcs     = useLCS(speed);
+  const lis     = useLIS(speed);
+  const mcm     = useMCM(speed);
+  const avl     = useAVL(selectedAlgo, speed);
+  const rbt     = useRBT(selectedAlgo, speed);
+  const heap    = useHeap(selectedAlgo, speed);
 
   const handleSelectAlgo = useCallback((algoId) => {
     setSelectedAlgo(algoId);
-    setIsRunning(false);
-    clearInterval(intervalRef.current);
-    clearInterval(timerRef.current);
-    // Reset sorting/searching
-    const newArr = generateArray();
-    setArray(newArr);
-    setFrame(null);
-    setIsDone(false);
-    setTimeTaken(0);
-    setStartTime(null);
-    generatorRef.current = null;
-    // Reset BST animation
-    stopBST();
-    setBstFrame(null);
-    setBstInput('');
-    setBstDone(false);
-    // Reset LCS animation
-    stopLCS();
-    setLcsFrame(null);
-    setLcsDone(false);
-    // Reset AVL animation
-    stopAVL();
-    setAvlFrame(null);
-    setAvlInput('');
-    setAvlDone(false);
-    // Reset RBT animation
-    stopRBT();
-    setRbtFrame(null);
-    setRbtInput('');
-    setRbtDone(false);
-    // Reset Heap
-    stopHeap();
-    setHeapArray([...DEFAULT_HEAP_ARRAY]);
-    setHeapFrame(null);
-    setHeapInput('');
-    setHeapDone(false);
+    sorting.handleReset();
+    bst.resetState();
+    lcs.resetState();
+    lis.resetState();
+    mcm.resetState();
+    avl.resetState();
+    rbt.resetState();
+    heap.resetState();
   }, []); // eslint-disable-line
 
-  // Auto-play loop (sorting/searching)
-  useEffect(() => {
-    if (!isBST && !isLCS && !isAVL && !isRBT && !isHeap && isRunning) {
-      if (!generatorRef.current) {
-        generatorRef.current = currentAlgo.generator(array);
-      }
-      timerRef.current = setInterval(() => {
-        if (startTime) setTimeTaken(Date.now() - startTime);
-      }, 10);
-      intervalRef.current = setInterval(() => {
-        if (!step()) {
-          clearInterval(intervalRef.current);
-          clearInterval(timerRef.current);
-        }
-      }, speed);
-    }
-    return () => {
-      clearInterval(intervalRef.current);
-      clearInterval(timerRef.current);
-    };
-  }, [isRunning, speed, step, currentAlgo, array, startTime, isBST, isLCS]);
+  const currentInfo = isHeap ? heapInfo
+    : isRBT ? rbtInfo
+    : isAVL ? avlInfo
+    : isMCM ? mcmInfo
+    : isLIS ? lisInfo
+    : isLCS ? lcsInfo
+    : isBST ? bstInfo
+    : currentAlgo?.info;
 
-  // ── BST helpers ───────────────────────────────────────────────────────────
-  function stopBST() {
-    setBstRunning(false);
-    clearInterval(bstIntervalRef.current);
-    bstGenRef.current = null;
-  }
+  const currentCode = isHeap ? heapCodeMap[selectedAlgo]
+    : isRBT ? rbtCodeMap[selectedAlgo]
+    : isAVL ? avlCodeMap[selectedAlgo]
+    : isMCM ? mcmCode
+    : isLIS ? lisCode
+    : isLCS ? lcsCode
+    : isBST ? bstCode
+    : currentAlgo?.code;
 
-  // After a BST animation finishes, we need to update the underlying tree.
-  // The generators return the new root via their `return` value, but since
-  // we drive them with setInterval we capture it via a ref.
-  const pendingRootRef = useRef(null);
+  const currentActiveLine = isHeap ? heap.heapFrame?.activeLine
+    : isRBT ? rbt.rbtFrame?.activeLine
+    : isAVL ? avl.avlFrame?.activeLine
+    : isMCM ? mcm.mcmFrame?.activeLine
+    : isLIS ? lis.lisFrame?.activeLine
+    : isLCS ? lcs.lcsFrame?.activeLine
+    : isBST ? bst.bstFrame?.activeLine
+    : sorting.frame?.activeLine;
 
-  function runBSTAnimation(gen, workingRoot) {
-    stopBST();
-    pendingRootRef.current = workingRoot;
-    bstGenRef.current = gen;
-    setBstRunning(true);
-    setBstDone(false);
-    setBstGenRoot(workingRoot);
-
-    bstIntervalRef.current = setInterval(() => {
-      if (!bstGenRef.current) return;
-      const { value, done, value: returnVal } = bstGenRef.current.next();
-
-      if (done) {
-        clearInterval(bstIntervalRef.current);
-        setBstRunning(false);
-        setBstDone(true);
-        bstGenRef.current = null;
-        // For insert/delete the generator mutates and returns new root via last yield's frame
-        // We rely on the last frame's root
-        return;
-      }
-
-      setBstFrame(value);
-      // Keep track of the latest root from frame
-      if (value.root) pendingRootRef.current = value.root;
-    }, speed);
-  }
-
-  // When BST animation is done, commit the resulting tree
-  useEffect(() => {
-    if (bstDone && pendingRootRef.current) {
-      setBstRoot(pendingRootRef.current);
-    }
-  }, [bstDone]);
-
-  // Cleanup BST intervals on unmount
-  useEffect(() => () => clearInterval(bstIntervalRef.current), []);
-
-  function handleBSTRun() {
-    if (BST_NO_INPUT.includes(selectedAlgo)) {
-      if (selectedAlgo === 'bstInorder') runBSTAnimation(bstInorder(bstRoot), bstRoot);
-      else if (selectedAlgo === 'bstPreorder') runBSTAnimation(bstPreorder(bstRoot), bstRoot);
-      else if (selectedAlgo === 'bstPostorder') runBSTAnimation(bstPostorder(bstRoot), bstRoot);
-      else if (selectedAlgo === 'bstBFS') runBSTAnimation(bstBFS(bstRoot), bstRoot);
-      else if (selectedAlgo === 'bstDFS') runBSTAnimation(bstDFS(bstRoot), bstRoot);
-      return;
-    }
-
-    const raw = bstInput.trim();
-    const val = parseInt(raw, 10);
-    if (isNaN(val) || val < 1 || val > 999) return;
-
-    // Clone the current root so generators can work on it safely
-    if (selectedAlgo === 'bstInsert') {
-      const gen = bstInsert(bstRoot, val);
-      runBSTAnimation(gen, bstRoot);
-    } else if (selectedAlgo === 'bstSearch') {
-      const gen = bstSearch(bstRoot, val);
-      runBSTAnimation(gen, bstRoot);
-    } else if (selectedAlgo === 'bstDelete') {
-      const gen = bstDelete(bstRoot, val);
-      runBSTAnimation(gen, bstRoot);
-    }
-  }
-
-  function handleBSTReset() {
-    stopBST();
-    setBstRoot(buildBST(DEFAULT_TREE_VALUES));
-    setBstFrame(null);
-    setBstInput('');
-    setBstDone(false);
-    pendingRootRef.current = null;
-  }
-
-  function handleBSTStep() {
-    if (!bstGenRef.current) return;
-    const { value, done } = bstGenRef.current.next();
-    if (done) {
-      setBstRunning(false);
-      setBstDone(true);
-      clearInterval(bstIntervalRef.current);
-      bstGenRef.current = null;
-      if (pendingRootRef.current) setBstRoot(pendingRootRef.current);
-      return;
-    }
-    setBstFrame(value);
-    if (value.root) pendingRootRef.current = value.root;
-  }
-
-  function handleBSTStart() {
-    if (!bstGenRef.current) {
-      handleBSTRun();
-      return;
-    }
-    setBstRunning(true);
-    bstIntervalRef.current = setInterval(() => {
-      if (!bstGenRef.current) {
-        clearInterval(bstIntervalRef.current);
-        return;
-      }
-      const { value, done } = bstGenRef.current.next();
-      if (done) {
-        clearInterval(bstIntervalRef.current);
-        setBstRunning(false);
-        setBstDone(true);
-        bstGenRef.current = null;
-        if (pendingRootRef.current) setBstRoot(pendingRootRef.current);
-        return;
-      }
-      setBstFrame(value);
-      if (value.root) pendingRootRef.current = value.root;
-    }, speed);
-  }
-
-  function handleBSTPause() {
-    setBstRunning(false);
-    clearInterval(bstIntervalRef.current);
-  }
-
-  // Operation label
-  const bstOpLabel = {
-    bstInsert: 'Insert',
-    bstSearch: 'Search',
-    bstDelete: 'Delete',
-    bstInorder: 'Run Inorder',
-    bstPreorder: 'Run Preorder',
-    bstPostorder: 'Run Postorder',
-    bstBFS: 'Run BFS',
-    bstDFS: 'Run DFS',
-  }[selectedAlgo] || '';
-
-  // ── LCS helpers ───────────────────────────────────────────────────────────
-  function stopLCS() {
-    setLcsRunning(false);
-    clearInterval(lcsIntervalRef.current);
-    lcsGenRef.current = null;
-  }
-
-  function handleLCSRun() {
-    const s1 = lcsStr1.trim();
-    const s2 = lcsStr2.trim();
-    if (!s1 || !s2) return;
-
-    stopLCS();
-    const gen = lcs(s1, s2);
-    lcsGenRef.current = gen;
-    setLcsRunning(true);
-    setLcsDone(false);
-    setLcsFrame(null);
-
-    lcsIntervalRef.current = setInterval(() => {
-      if (!lcsGenRef.current) return;
-      const { value, done } = lcsGenRef.current.next();
-      if (done) {
-        clearInterval(lcsIntervalRef.current);
-        setLcsRunning(false);
-        setLcsDone(true);
-        lcsGenRef.current = null;
-        return;
-      }
-      setLcsFrame(value);
-    }, speed);
-  }
-
-  function handleLCSReset() {
-    stopLCS();
-    setLcsFrame(null);
-    setLcsDone(false);
-  }
-
-  function handleLCSStep() {
-    // If no generator yet, create one first
-    if (!lcsGenRef.current) {
-      const s1 = lcsStr1.trim();
-      const s2 = lcsStr2.trim();
-      if (!s1 || !s2) return;
-      lcsGenRef.current = lcs(s1, s2);
-      setLcsDone(false);
-    }
-    const { value, done } = lcsGenRef.current.next();
-    if (done) {
-      setLcsRunning(false);
-      setLcsDone(true);
-      clearInterval(lcsIntervalRef.current);
-      lcsGenRef.current = null;
-      return;
-    }
-    setLcsFrame(value);
-  }
-
-  function handleLCSStart() {
-    if (!lcsGenRef.current) {
-      handleLCSRun();
-      return;
-    }
-    setLcsRunning(true);
-    lcsIntervalRef.current = setInterval(() => {
-      if (!lcsGenRef.current) {
-        clearInterval(lcsIntervalRef.current);
-        return;
-      }
-      const { value, done } = lcsGenRef.current.next();
-      if (done) {
-        clearInterval(lcsIntervalRef.current);
-        setLcsRunning(false);
-        setLcsDone(true);
-        lcsGenRef.current = null;
-        return;
-      }
-      setLcsFrame(value);
-    }, speed);
-  }
-
-  function handleLCSPause() {
-    setLcsRunning(false);
-    clearInterval(lcsIntervalRef.current);
-  }
-
-  // Cleanup LCS intervals on unmount
-  useEffect(() => () => clearInterval(lcsIntervalRef.current), []);
-
-  // ── AVL helpers ─────────────────────────────────────────────────────────────
-  function stopAVL() {
-    setAvlRunning(false);
-    clearInterval(avlIntervalRef.current);
-    avlGenRef.current = null;
-  }
-
-  function runAVLAnimation(gen) {
-    stopAVL();
-    avlGenRef.current = gen;
-    setAvlRunning(true);
-    setAvlDone(false);
-
-    avlIntervalRef.current = setInterval(() => {
-      if (!avlGenRef.current) return;
-      const { value, done } = avlGenRef.current.next();
-      if (done) {
-        clearInterval(avlIntervalRef.current);
-        setAvlRunning(false);
-        setAvlDone(true);
-        avlGenRef.current = null;
-        if (avlPendingRootRef.current) setAvlRoot(avlPendingRootRef.current);
-        return;
-      }
-      setAvlFrame(value);
-      if (value.root) avlPendingRootRef.current = value.root;
-    }, speed);
-  }
-
-  useEffect(() => {
-    if (avlDone && avlPendingRootRef.current) setAvlRoot(avlPendingRootRef.current);
-  }, [avlDone]);
-
-  useEffect(() => () => clearInterval(avlIntervalRef.current), []);
-
-  function handleAVLRun() {
-    const val = parseInt(avlInput.trim(), 10);
-    if (isNaN(val) || val < 1 || val > 999) return;
-    const gen = selectedAlgo === 'avlInsert' ? avlInsert(avlRoot, val) : avlDelete(avlRoot, val);
-    avlPendingRootRef.current = avlRoot;
-    runAVLAnimation(gen);
-  }
-
-  function handleAVLReset() {
-    stopAVL();
-    setAvlRoot(buildAVL(DEFAULT_AVL_VALUES));
-    setAvlFrame(null);
-    setAvlInput('');
-    setAvlDone(false);
-    avlPendingRootRef.current = null;
-  }
-
-  function handleAVLStep() {
-    if (!avlGenRef.current) return;
-    const { value, done } = avlGenRef.current.next();
-    if (done) {
-      setAvlRunning(false);
-      setAvlDone(true);
-      clearInterval(avlIntervalRef.current);
-      avlGenRef.current = null;
-      if (avlPendingRootRef.current) setAvlRoot(avlPendingRootRef.current);
-      return;
-    }
-    setAvlFrame(value);
-    if (value.root) avlPendingRootRef.current = value.root;
-  }
-
-  function handleAVLStart() {
-    if (!avlGenRef.current) { handleAVLRun(); return; }
-    setAvlRunning(true);
-    avlIntervalRef.current = setInterval(() => {
-      if (!avlGenRef.current) { clearInterval(avlIntervalRef.current); return; }
-      const { value, done } = avlGenRef.current.next();
-      if (done) {
-        clearInterval(avlIntervalRef.current);
-        setAvlRunning(false);
-        setAvlDone(true);
-        avlGenRef.current = null;
-        if (avlPendingRootRef.current) setAvlRoot(avlPendingRootRef.current);
-        return;
-      }
-      setAvlFrame(value);
-      if (value.root) avlPendingRootRef.current = value.root;
-    }, speed);
-  }
-
-  function handleAVLPause() {
-    setAvlRunning(false);
-    clearInterval(avlIntervalRef.current);
-  }
-
-  // ── RBT helpers ─────────────────────────────────────────────────────────────
-  function stopRBT() {
-    setRbtRunning(false);
-    clearInterval(rbtIntervalRef.current);
-    rbtGenRef.current = null;
-  }
-
-  function runRBTAnimation(gen) {
-    stopRBT();
-    rbtGenRef.current = gen;
-    setRbtRunning(true);
-    setRbtDone(false);
-
-    rbtIntervalRef.current = setInterval(() => {
-      if (!rbtGenRef.current) return;
-      const { value, done } = rbtGenRef.current.next();
-      if (done) {
-        clearInterval(rbtIntervalRef.current);
-        setRbtRunning(false);
-        setRbtDone(true);
-        rbtGenRef.current = null;
-        // value here is the generator's return value — the live tree with parent pointers
-        setRbtRoot(value ?? rbtPendingRootRef.current);
-        return;
-      }
-      setRbtFrame(value);
-      if ('root' in value) rbtPendingRootRef.current = value.root;
-    }, speed);
-  }
-
-  useEffect(() => () => clearInterval(rbtIntervalRef.current), []);
-
-  function handleRBTRun() {
-    const val = parseInt(rbtInput.trim(), 10);
-    if (isNaN(val) || val < 1 || val > 999) return;
-    rbtPendingRootRef.current = rbtRoot;
-    const gen = selectedAlgo === 'rbtInsert' ? rbtInsert(rbtRoot, val)
-      : selectedAlgo === 'rbtDelete' ? rbtDelete(rbtRoot, val)
-      : rbtSearch(rbtRoot, val);
-    runRBTAnimation(gen);
-  }
-
-  function handleRBTReset() {
-    stopRBT();
-    setRbtRoot(buildRBT(DEFAULT_RBT_VALUES));
-    setRbtFrame(null);
-    setRbtInput('');
-    setRbtDone(false);
-    rbtPendingRootRef.current = null;
-  }
-
-  function handleRBTStep() {
-    if (!rbtGenRef.current) return;
-    const { value, done } = rbtGenRef.current.next();
-    if (done) {
-      setRbtRunning(false);
-      setRbtDone(true);
-      clearInterval(rbtIntervalRef.current);
-      rbtGenRef.current = null;
-      setRbtRoot(value ?? rbtPendingRootRef.current);
-      return;
-    }
-    setRbtFrame(value);
-    if ('root' in value) rbtPendingRootRef.current = value.root;
-  }
-
-  function handleRBTStart() {
-    if (!rbtGenRef.current) { handleRBTRun(); return; }
-    setRbtRunning(true);
-    rbtIntervalRef.current = setInterval(() => {
-      if (!rbtGenRef.current) { clearInterval(rbtIntervalRef.current); return; }
-      const { value, done } = rbtGenRef.current.next();
-      if (done) {
-        clearInterval(rbtIntervalRef.current);
-        setRbtRunning(false);
-        setRbtDone(true);
-        rbtGenRef.current = null;
-        setRbtRoot(value ?? rbtPendingRootRef.current);
-        return;
-      }
-      setRbtFrame(value);
-      if ('root' in value) rbtPendingRootRef.current = value.root;
-    }, speed);
-  }
-
-  function handleRBTPause() {
-    setRbtRunning(false);
-    clearInterval(rbtIntervalRef.current);
-  }
-
-  // ── Heap helpers ─────────────────────────────────────────────────────────────
-  function stopHeap() {
-    setHeapRunning(false);
-    clearInterval(heapIntervalRef.current);
-    heapGenRef.current = null;
-  }
-
-  function runHeapAnimation(gen) {
-    stopHeap();
-    heapGenRef.current = gen;
-    setHeapRunning(true);
-    setHeapDone(false);
-
-    heapIntervalRef.current = setInterval(() => {
-      if (!heapGenRef.current) return;
-      const { value, done } = heapGenRef.current.next();
-      if (done) {
-        clearInterval(heapIntervalRef.current);
-        setHeapRunning(false);
-        setHeapDone(true);
-        heapGenRef.current = null;
-        if (value) setHeapArray(value);
-        return;
-      }
-      setHeapFrame(value);
-      if (value?.array) setHeapArray(value.array);
-    }, speed);
-  }
-
-  useEffect(() => () => clearInterval(heapIntervalRef.current), []);
-
-  function handleHeapRun() {
-    if (HEAP_NO_INPUT.has(selectedAlgo)) {
-      const gen =
-        selectedAlgo === 'minHeapExtract' ? minHeapExtract(heapArray)
-        : selectedAlgo === 'maxHeapExtract' ? maxHeapExtract(heapArray)
-        : selectedAlgo === 'heapBuildMin' ? heapBuild(heapArray, true)
-        : selectedAlgo === 'heapBuildMax' ? heapBuild(heapArray, false)
-        : heapSort(heapArray);
-      runHeapAnimation(gen);
-      return;
-    }
-    const val = parseInt(heapInput.trim(), 10);
-    if (isNaN(val) || val < 1 || val > 999) return;
-    const gen = selectedAlgo === 'minHeapInsert'
-      ? minHeapInsert(heapArray, val)
-      : maxHeapInsert(heapArray, val);
-    runHeapAnimation(gen);
-  }
-
-  function handleHeapReset() {
-    stopHeap();
-    setHeapArray([...DEFAULT_HEAP_ARRAY]);
-    setHeapFrame(null);
-    setHeapInput('');
-    setHeapDone(false);
-  }
-
-  function handleHeapStep() {
-    if (!heapGenRef.current) return;
-    const { value, done } = heapGenRef.current.next();
-    if (done) {
-      setHeapRunning(false);
-      setHeapDone(true);
-      clearInterval(heapIntervalRef.current);
-      heapGenRef.current = null;
-      if (value) setHeapArray(value);
-      return;
-    }
-    setHeapFrame(value);
-    if (value?.array) setHeapArray(value.array);
-  }
-
-  function handleHeapStart() {
-    if (!heapGenRef.current) { handleHeapRun(); return; }
-    setHeapRunning(true);
-    heapIntervalRef.current = setInterval(() => {
-      if (!heapGenRef.current) { clearInterval(heapIntervalRef.current); return; }
-      const { value, done } = heapGenRef.current.next();
-      if (done) {
-        clearInterval(heapIntervalRef.current);
-        setHeapRunning(false);
-        setHeapDone(true);
-        heapGenRef.current = null;
-        if (value) setHeapArray(value);
-        return;
-      }
-      setHeapFrame(value);
-      if (value?.array) setHeapArray(value.array);
-    }, speed);
-  }
-
-  function handleHeapPause() {
-    setHeapRunning(false);
-    clearInterval(heapIntervalRef.current);
-  }
-
-  // ── Determine which info / code to show ────────────────────────────────────
-  const currentInfo = isHeap ? heapInfo : isRBT ? rbtInfo : isLCS ? lcsInfo : isAVL ? avlInfo : isBST ? bstInfo : currentAlgo?.info;
-  const currentCode = isHeap ? heapCodeMap[selectedAlgo] : isRBT ? rbtCodeMap[selectedAlgo] : isLCS ? lcsCode : isAVL ? avlCodeMap[selectedAlgo] : isBST ? bstCodeMap[selectedAlgo] : currentAlgo?.code;
-  const currentActiveLine = isHeap ? heapFrame?.activeLine : isRBT ? rbtFrame?.activeLine : isLCS ? lcsFrame?.activeLine : isAVL ? avlFrame?.activeLine : isBST ? bstFrame?.activeLine : frame?.activeLine;
-
-  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
-      {/* Top Navbar */}
       <Navbar algorithmInfo={currentInfo} />
 
-      {/* Main body */}
       <div className="flex flex-1 min-h-0">
-        {/* Left Sidebar */}
         <Sidebar selected={selectedAlgo} onSelect={handleSelectAlgo} />
 
-        {/* Center: Visualizer + Controls */}
         <main className="flex-1 flex flex-col min-h-0 bg-zinc-950">
-
-          {/* ── LCS Branch ───────────────────────────────────────── */}
-          {isLCS ? (
-            <>
-              <LCSVisualizer frame={lcsFrame} />
-
-              {/* LCS Controls */}
-              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
-                {/* String inputs */}
-                <input
-                  type="text"
-                  value={lcsStr1}
-                  onChange={(e) => { setLcsStr1(e.target.value.toUpperCase()); }}
-                  placeholder="String 1"
-                  className="w-32 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
-                  disabled={lcsRunning}
-                  maxLength={15}
-                />
-                <input
-                  type="text"
-                  value={lcsStr2}
-                  onChange={(e) => { setLcsStr2(e.target.value.toUpperCase()); }}
-                  placeholder="String 2"
-                  className="w-32 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
-                  disabled={lcsRunning}
-                  maxLength={15}
-                />
-
-                {/* Run button */}
-                <button
-                  onClick={handleLCSRun}
-                  disabled={lcsRunning || !lcsStr1.trim() || !lcsStr2.trim()}
-                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5,3 19,12 5,21" />
-                  </svg>
-                  Run
-                </button>
-
-                {/* Pause / Resume */}
-                {lcsRunning ? (
-                  <button
-                    onClick={handleLCSPause}
-                    className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="5" y="3" width="4" height="18" />
-                      <rect x="15" y="3" width="4" height="18" />
-                    </svg>
-                    Pause
-                  </button>
-                ) : lcsGenRef.current && !lcsDone ? (
-                  <button
-                    onClick={handleLCSStart}
-                    className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5,3 19,12 5,21" />
-                    </svg>
-                    Resume
-                  </button>
-                ) : null}
-
-                {/* Step */}
-                <button
-                  onClick={handleLCSStep}
-                  disabled={lcsRunning || lcsDone}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5,3 15,12 5,21" />
-                    <rect x="17" y="3" width="3" height="18" />
-                  </svg>
-                  Step
-                </button>
-
-                {/* Reset */}
-                <button
-                  onClick={handleLCSReset}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="1,4 1,10 7,10" />
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                  </svg>
-                  Reset
-                </button>
-
-                {/* Divider */}
-                <div className="w-px h-6 bg-zinc-800 mx-2" />
-
-                {/* Speed */}
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
-                  <input
-                    type="range"
-                    min="10"
-                    max="500"
-                    value={speed}
-                    onChange={(e) => setSpeed(Number(e.target.value))}
-                    className="w-24 accent-zinc-400"
-                  />
-                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
-                </div>
-
-                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
-                  Grid: <span className="text-zinc-300 font-mono font-medium">{lcsStr1.trim().length + 1} × {lcsStr2.trim().length + 1}</span>
-                </div>
-              </div>
-            </>
-          ) : isHeap ? (
-            /* ── Heap Branch ─────────────────────────────────────────── */
-            <>
-              <HeapVisualizer
-                frame={heapFrame ?? { array: heapArray, heapSize: heapArray.length, comparing: [], swapping: [], sorted: [], heapified: [], phase: null, message: null }}
-                isMin={selectedAlgo.startsWith('min') || selectedAlgo === 'heapBuildMin'}
-              />
-              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
-                {!HEAP_NO_INPUT.has(selectedAlgo) && (
-                  <input
-                    type="number"
-                    value={heapInput}
-                    onChange={(e) => setHeapInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleHeapRun()}
-                    placeholder="Value (1-999)"
-                    className="w-36 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
-                    min={1} max={999} disabled={heapRunning}
-                  />
-                )}
-                <button
-                  onClick={handleHeapRun}
-                  disabled={heapRunning || (!HEAP_NO_INPUT.has(selectedAlgo) && !heapInput.trim())}
-                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
-                  {{
-                    minHeapInsert: 'Insert', maxHeapInsert: 'Insert',
-                    minHeapExtract: 'Extract Min', maxHeapExtract: 'Extract Max',
-                    heapBuildMin: 'Build Min Heap', heapBuildMax: 'Build Max Heap',
-                    heapSort: 'Heap Sort',
-                  }[selectedAlgo]}
-                </button>
-                {heapRunning ? (
-                  <button onClick={handleHeapPause} className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18" /><rect x="15" y="3" width="4" height="18" /></svg>
-                    Pause
-                  </button>
-                ) : heapGenRef.current && !heapDone ? (
-                  <button onClick={handleHeapStart} className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
-                    Resume
-                  </button>
-                ) : null}
-                <button
-                  onClick={handleHeapStep}
-                  disabled={heapRunning || !heapGenRef.current || heapDone}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 15,12 5,21" /><rect x="17" y="3" width="3" height="18" /></svg>
-                  Step
-                </button>
-                <button
-                  onClick={handleHeapReset}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1,4 1,10 7,10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
-                  Reset
-                </button>
-                <div className="w-px h-6 bg-zinc-800 mx-2" />
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
-                  <input type="range" min="10" max="500" value={510 - speed} onChange={(e) => setSpeed(510 - Number(e.target.value))} className="w-24 accent-zinc-400" />
-                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
-                </div>
-                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
-                  Size: <span className="text-zinc-300 font-mono font-medium">{heapArray.length}</span>
-                </div>
-              </div>
-            </>
+          {isHeap ? (
+            <HeapSection
+              selectedAlgo={selectedAlgo}
+              heapArray={heap.heapArray} heapFrame={heap.heapFrame}
+              heapInput={heap.heapInput} setHeapInput={heap.setHeapInput}
+              heapRunning={heap.heapRunning} heapDone={heap.heapDone}
+              heapGenRef={heap.heapGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={heap.handleRun} onStart={heap.handleStart}
+              onPause={heap.handlePause} onStep={heap.handleStep}
+              onReset={heap.handleReset}
+            />
           ) : isRBT ? (
-            /* ── RBT Branch ─────────────────────────────────────────── */
-            <>
-              <RBTVisualizer
-                frame={rbtFrame ?? { root: rbtRoot, blackHeights: new Map(), highlightedNodes: [], rotatingNodes: [], recoloredNodes: [], phase: null, message: null }}
-              />
-              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
-                <input
-                  type="number"
-                  value={rbtInput}
-                  onChange={(e) => setRbtInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleRBTRun()}
-                  placeholder="Enter value (1-999)"
-                  className="w-44 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
-                  min={1} max={999} disabled={rbtRunning}
-                />
-                <button
-                  onClick={handleRBTRun}
-                  disabled={rbtRunning || !rbtInput.trim()}
-                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
-                  {{ rbtInsert: 'Insert', rbtDelete: 'Delete', rbtSearch: 'Search' }[selectedAlgo]}
-                </button>
-                {rbtRunning ? (
-                  <button onClick={handleRBTPause} className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18" /><rect x="15" y="3" width="4" height="18" /></svg>
-                    Pause
-                  </button>
-                ) : rbtGenRef.current && !rbtDone ? (
-                  <button onClick={handleRBTStart} className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
-                    Resume
-                  </button>
-                ) : null}
-                <button
-                  onClick={handleRBTStep}
-                  disabled={rbtRunning || !rbtGenRef.current || rbtDone}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 15,12 5,21" /><rect x="17" y="3" width="3" height="18" /></svg>
-                  Step
-                </button>
-                <button
-                  onClick={handleRBTReset}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1,4 1,10 7,10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
-                  Reset Tree
-                </button>
-                <div className="w-px h-6 bg-zinc-800 mx-2" />
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
-                  <input type="range" min="10" max="500" value={510 - speed} onChange={(e) => setSpeed(510 - Number(e.target.value))} className="w-24 accent-zinc-400" />
-                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
-                </div>
-                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
-                  Tree: <span className="text-zinc-300 font-mono font-medium">{countTreeNodes(rbtRoot)}</span> nodes
-                </div>
-              </div>
-            </>
+            <RBTSection
+              selectedAlgo={selectedAlgo}
+              rbtRoot={rbt.rbtRoot} rbtFrame={rbt.rbtFrame}
+              rbtInput={rbt.rbtInput} setRbtInput={rbt.setRbtInput}
+              rbtRunning={rbt.rbtRunning} rbtDone={rbt.rbtDone}
+              rbtGenRef={rbt.rbtGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={rbt.handleRun} onStart={rbt.handleStart}
+              onPause={rbt.handlePause} onStep={rbt.handleStep}
+              onReset={rbt.handleReset}
+            />
           ) : isAVL ? (
-            /* ── AVL Branch ─────────────────────────────────────────── */
-            <>
-              <AVLVisualizer
-                frame={avlFrame ?? { root: avlRoot, balanceFactors: null, highlightedNodes: [], rotatingNodes: [], unbalancedNode: null, newNodeId: null, deletedId: null, phase: null, message: null }}
-              />
-
-              {/* AVL Controls */}
-              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
-                <input
-                  type="number"
-                  value={avlInput}
-                  onChange={(e) => setAvlInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAVLRun()}
-                  placeholder="Enter value (1-999)"
-                  className="w-44 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
-                  min={1} max={999}
-                  disabled={avlRunning}
-                />
-
-                <button
-                  onClick={handleAVLRun}
-                  disabled={avlRunning || !avlInput.trim()}
-                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
-                  {selectedAlgo === 'avlInsert' ? 'Insert' : 'Delete'}
-                </button>
-
-                {avlRunning ? (
-                  <button onClick={handleAVLPause} className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18" /><rect x="15" y="3" width="4" height="18" /></svg>
-                    Pause
-                  </button>
-                ) : avlGenRef.current && !avlDone ? (
-                  <button onClick={handleAVLStart} className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
-                    Resume
-                  </button>
-                ) : null}
-
-                <button
-                  onClick={handleAVLStep}
-                  disabled={avlRunning || !avlGenRef.current || avlDone}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 15,12 5,21" /><rect x="17" y="3" width="3" height="18" /></svg>
-                  Step
-                </button>
-
-                <button
-                  onClick={handleAVLReset}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1,4 1,10 7,10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
-                  Reset Tree
-                </button>
-
-                <div className="w-px h-6 bg-zinc-800 mx-2" />
-
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
-                  <input type="range" min="10" max="500" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="w-24 accent-zinc-400" />
-                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
-                </div>
-
-                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
-                  Tree: <span className="text-zinc-300 font-mono font-medium">{countTreeNodes(avlRoot)}</span> nodes
-                </div>
-              </div>
-            </>
+            <AVLSection
+              selectedAlgo={selectedAlgo}
+              avlRoot={avl.avlRoot} avlFrame={avl.avlFrame}
+              avlInput={avl.avlInput} setAvlInput={avl.setAvlInput}
+              avlRunning={avl.avlRunning} avlDone={avl.avlDone}
+              avlGenRef={avl.avlGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={avl.handleRun} onStart={avl.handleStart}
+              onPause={avl.handlePause} onStep={avl.handleStep}
+              onReset={avl.handleReset}
+            />
+          ) : isMCM ? (
+            <MCMSection
+              mcmDims={mcm.mcmDims} setMcmDims={mcm.setMcmDims}
+              mcmFrame={mcm.mcmFrame} mcmRunning={mcm.mcmRunning}
+              mcmDone={mcm.mcmDone} mcmGenRef={mcm.mcmGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={mcm.handleRun} onPause={mcm.handlePause}
+              onResume={mcm.handleResume} onStep={mcm.handleStep}
+              onReset={mcm.handleReset}
+            />
+          ) : isLIS ? (
+            <LISSection
+              lisArr={lis.lisArr} setLisArr={lis.setLisArr}
+              lisFrame={lis.lisFrame} lisRunning={lis.lisRunning}
+              lisDone={lis.lisDone} lisGenRef={lis.lisGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={lis.handleRun} onPause={lis.handlePause}
+              onResume={lis.handleResume} onStep={lis.handleStep}
+              onReset={lis.handleReset}
+            />
+          ) : isLCS ? (
+            <LCSSection
+              lcsStr1={lcs.lcsStr1} setLcsStr1={lcs.setLcsStr1}
+              lcsStr2={lcs.lcsStr2} setLcsStr2={lcs.setLcsStr2}
+              lcsFrame={lcs.lcsFrame} lcsRunning={lcs.lcsRunning}
+              lcsDone={lcs.lcsDone} lcsGenRef={lcs.lcsGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={lcs.handleRun} onPause={lcs.handlePause}
+              onResume={lcs.handleResume} onStep={lcs.handleStep}
+              onReset={lcs.handleReset}
+            />
           ) : isBST ? (
-            /* ── BST Branch ─────────────────────────────────────────── */
-            <>
-              <BSTVisualizer
-                frame={bstFrame ?? { root: bstRoot, highlightedNodes: [], highlightedEdges: [], pathNodes: [], message: null, phase: null }}
-              />
-
-              {/* BST Controls */}
-              <div className="shrink-0 bg-zinc-900 border-t border-zinc-800/50 px-5 py-3 flex flex-wrap items-center gap-3">
-                {/* Value input */}
-                {!BST_NO_INPUT.includes(selectedAlgo) && (
-                  <input
-                    type="number"
-                    value={bstInput}
-                    onChange={(e) => setBstInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleBSTRun()}
-                    placeholder="Enter value (1-999)"
-                    className="w-44 px-3 py-1.5 rounded-md bg-zinc-800/50 border border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 transition-all font-mono"
-                    min={1}
-                    max={999}
-                    disabled={bstRunning}
-                  />
-                )}
-
-                {/* Run operation button */}
-                <button
-                  onClick={handleBSTRun}
-                  disabled={bstRunning || (!BST_NO_INPUT.includes(selectedAlgo) && !bstInput.trim())}
-                  className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5,3 19,12 5,21" />
-                  </svg>
-                  {bstOpLabel}
-                </button>
-
-                {/* Pause / Resume */}
-                {bstRunning ? (
-                  <button
-                    onClick={handleBSTPause}
-                    className="px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="5" y="3" width="4" height="18" />
-                      <rect x="15" y="3" width="4" height="18" />
-                    </svg>
-                    Pause
-                  </button>
-                ) : bstGenRef.current && !bstDone ? (
-                  <button
-                    onClick={handleBSTStart}
-                    className="px-4 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5,3 19,12 5,21" />
-                    </svg>
-                    Resume
-                  </button>
-                ) : null}
-
-                {/* Step */}
-                <button
-                  onClick={handleBSTStep}
-                  disabled={bstRunning || !bstGenRef.current || bstDone}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 disabled:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5,3 15,12 5,21" />
-                    <rect x="17" y="3" width="3" height="18" />
-                  </svg>
-                  Step
-                </button>
-
-                {/* Reset */}
-                <button
-                  onClick={handleBSTReset}
-                  className="px-3 py-1.5 rounded-md bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="1,4 1,10 7,10" />
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                  </svg>
-                  Reset Tree
-                </button>
-
-                {/* Divider */}
-                <div className="w-px h-6 bg-zinc-800 mx-2" />
-
-                {/* Speed */}
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 whitespace-nowrap">Speed</span>
-                  <input
-                    type="range"
-                    min="10"
-                    max="500"
-                    value={speed}
-                    onChange={(e) => setSpeed(Number(e.target.value))}
-                    className="w-24 accent-zinc-400"
-                  />
-                  <span className="text-xs text-zinc-500 font-mono w-10">{speed}ms</span>
-                </div>
-
-                <div className="ml-auto text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
-                  Tree: <span className="text-zinc-300 font-mono font-medium">{countTreeNodes(bstRoot)}</span> nodes
-                </div>
-              </div>
-            </>
+            <BSTSection
+              selectedAlgo={selectedAlgo}
+              bstRoot={bst.bstRoot} bstFrame={bst.bstFrame}
+              bstInput={bst.bstInput} setBstInput={bst.setBstInput}
+              bstRunning={bst.bstRunning} bstDone={bst.bstDone}
+              bstGenRef={bst.bstGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={bst.handleRun} onStart={bst.handleStart}
+              onPause={bst.handlePause} onStep={bst.handleStep}
+              onReset={bst.handleReset}
+            />
           ) : (
-            /* ── Standard Sorting / Searching Branch ──────────────── */
-            <>
-              <Visualizer
-                array={array}
-                frame={frame}
-                algorithmType={currentAlgo.type}
-              />
-              <PerformanceMetrics
-                comparisons={frame?.comparisons || 0}
-                swaps={frame?.swaps || 0}
-                timeTaken={timeTaken}
-                spaceComplexity={currentAlgo.info.spaceComplexity}
-              />
-              <Controls
-                isRunning={isRunning}
-                onStart={handleStart}
-                onPause={handlePause}
-                onReset={handleReset}
-                onStep={handleStep}
-                speed={speed}
-                onSpeedChange={setSpeed}
-                disabled={isDone}
-              />
-            </>
+            <SortingSection
+              array={sorting.array} frame={sorting.frame}
+              currentAlgo={currentAlgo}
+              isRunning={sorting.isRunning} isDone={sorting.isDone}
+              timeTaken={sorting.timeTaken}
+              speed={speed} onSpeedChange={setSpeed}
+              onStart={sorting.handleStart} onPause={sorting.handlePause}
+              onReset={sorting.handleReset} onStep={sorting.handleStep}
+            />
           )}
         </main>
 
-        {/* Right Panel with Toggle */}
         <div className="relative flex flex-col">
-          {/* Toggle Button */}
           <div className="absolute top-4 -left-10 z-10 w-10">
             <button
               onClick={() => setShowCodePanel(!showCodePanel)}
@@ -1319,12 +211,8 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Conditional Panel */}
           {showCodePanel ? (
-            <CodePanel
-              code={currentCode}
-              activeLine={currentActiveLine}
-            />
+            <CodePanel code={currentCode} activeLine={currentActiveLine} />
           ) : (
             <AiPanel />
           )}
@@ -1332,10 +220,4 @@ export default function Home() {
       </div>
     </div>
   );
-}
-
-/** Utility: count nodes in a BST */
-function countTreeNodes(node) {
-  if (!node) return 0;
-  return 1 + countTreeNodes(node.left) + countTreeNodes(node.right);
 }

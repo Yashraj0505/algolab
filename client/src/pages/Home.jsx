@@ -9,23 +9,32 @@ import { useBST, BST_IDS, bstInfo, bstCode } from '../hooks/useBST';
 import { useLCS, lcsInfo, lcsCode } from '../hooks/useLCS';
 import { useLIS, lisInfo, lisCode } from '../hooks/useLIS';
 import { useMCM, mcmInfo, mcmCode } from '../hooks/useMCM';
+import { useAVL, AVL_IDS, avlInfo, avlCodeMap } from '../hooks/useAVL';
+import { useRBT, RBT_IDS, rbtInfo, rbtCodeMap } from '../hooks/useRBT';
+import { useHeap, HEAP_IDS, heapInfo, heapCodeMap } from '../hooks/useHeap';
 
 import SortingSection from '../sections/SortingSection';
 import BSTSection from '../sections/BSTSection';
 import LCSSection from '../sections/LCSSection';
 import LISSection from '../sections/LISSection';
 import MCMSection from '../sections/MCMSection';
+import AVLSection from '../sections/AVLSection';
+import RBTSection from '../sections/RBTSection';
+import HeapSection from '../sections/HeapSection';
 
 export default function Home() {
   const [selectedAlgo, setSelectedAlgo] = useState('bubbleSort');
   const [showCodePanel, setShowCodePanel] = useState(true);
   const [speed, setSpeed] = useState(100);
 
-  const isBST = BST_IDS.has(selectedAlgo);
-  const isLCS = selectedAlgo === 'lcs';
-  const isLIS = selectedAlgo === 'lis';
-  const isMCM = selectedAlgo === 'mcm';
-  const isSort = !isBST && !isLCS && !isLIS && !isMCM;
+  const isBST  = BST_IDS.has(selectedAlgo);
+  const isLCS  = selectedAlgo === 'lcs';
+  const isLIS  = selectedAlgo === 'lis';
+  const isMCM  = selectedAlgo === 'mcm';
+  const isAVL  = AVL_IDS.has(selectedAlgo);
+  const isRBT  = RBT_IDS.has(selectedAlgo);
+  const isHeap = HEAP_IDS.has(selectedAlgo);
+  const isSort = !isBST && !isLCS && !isLIS && !isMCM && !isAVL && !isRBT && !isHeap;
 
   const currentAlgo = isSort ? algorithmRegistry[selectedAlgo] : null;
 
@@ -34,6 +43,9 @@ export default function Home() {
   const lcs     = useLCS(speed);
   const lis     = useLIS(speed);
   const mcm     = useMCM(speed);
+  const avl     = useAVL(selectedAlgo, speed);
+  const rbt     = useRBT(selectedAlgo, speed);
+  const heap    = useHeap(selectedAlgo, speed);
 
   const handleSelectAlgo = useCallback((algoId) => {
     setSelectedAlgo(algoId);
@@ -42,11 +54,33 @@ export default function Home() {
     lcs.resetState();
     lis.resetState();
     mcm.resetState();
+    avl.resetState();
+    rbt.resetState();
+    heap.resetState();
   }, []); // eslint-disable-line
 
-  const currentInfo = isMCM ? mcmInfo : isLIS ? lisInfo : isLCS ? lcsInfo : isBST ? bstInfo : currentAlgo?.info;
-  const currentCode = isMCM ? mcmCode : isLIS ? lisCode : isLCS ? lcsCode : isBST ? bstCode : currentAlgo?.code;
-  const currentActiveLine = isMCM ? mcm.mcmFrame?.activeLine
+  const currentInfo = isHeap ? heapInfo
+    : isRBT ? rbtInfo
+    : isAVL ? avlInfo
+    : isMCM ? mcmInfo
+    : isLIS ? lisInfo
+    : isLCS ? lcsInfo
+    : isBST ? bstInfo
+    : currentAlgo?.info;
+
+  const currentCode = isHeap ? heapCodeMap[selectedAlgo]
+    : isRBT ? rbtCodeMap[selectedAlgo]
+    : isAVL ? avlCodeMap[selectedAlgo]
+    : isMCM ? mcmCode
+    : isLIS ? lisCode
+    : isLCS ? lcsCode
+    : isBST ? bstCode
+    : currentAlgo?.code;
+
+  const currentActiveLine = isHeap ? heap.heapFrame?.activeLine
+    : isRBT ? rbt.rbtFrame?.activeLine
+    : isAVL ? avl.avlFrame?.activeLine
+    : isMCM ? mcm.mcmFrame?.activeLine
     : isLIS ? lis.lisFrame?.activeLine
     : isLCS ? lcs.lcsFrame?.activeLine
     : isBST ? bst.bstFrame?.activeLine
@@ -60,7 +94,43 @@ export default function Home() {
         <Sidebar selected={selectedAlgo} onSelect={handleSelectAlgo} />
 
         <main className="flex-1 flex flex-col min-h-0 bg-zinc-950">
-          {isMCM ? (
+          {isHeap ? (
+            <HeapSection
+              selectedAlgo={selectedAlgo}
+              heapArray={heap.heapArray} heapFrame={heap.heapFrame}
+              heapInput={heap.heapInput} setHeapInput={heap.setHeapInput}
+              heapRunning={heap.heapRunning} heapDone={heap.heapDone}
+              heapGenRef={heap.heapGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={heap.handleRun} onStart={heap.handleStart}
+              onPause={heap.handlePause} onStep={heap.handleStep}
+              onReset={heap.handleReset}
+            />
+          ) : isRBT ? (
+            <RBTSection
+              selectedAlgo={selectedAlgo}
+              rbtRoot={rbt.rbtRoot} rbtFrame={rbt.rbtFrame}
+              rbtInput={rbt.rbtInput} setRbtInput={rbt.setRbtInput}
+              rbtRunning={rbt.rbtRunning} rbtDone={rbt.rbtDone}
+              rbtGenRef={rbt.rbtGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={rbt.handleRun} onStart={rbt.handleStart}
+              onPause={rbt.handlePause} onStep={rbt.handleStep}
+              onReset={rbt.handleReset}
+            />
+          ) : isAVL ? (
+            <AVLSection
+              selectedAlgo={selectedAlgo}
+              avlRoot={avl.avlRoot} avlFrame={avl.avlFrame}
+              avlInput={avl.avlInput} setAvlInput={avl.setAvlInput}
+              avlRunning={avl.avlRunning} avlDone={avl.avlDone}
+              avlGenRef={avl.avlGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={avl.handleRun} onStart={avl.handleStart}
+              onPause={avl.handlePause} onStep={avl.handleStep}
+              onReset={avl.handleReset}
+            />
+          ) : isMCM ? (
             <MCMSection
               mcmDims={mcm.mcmDims} setMcmDims={mcm.setMcmDims}
               mcmFrame={mcm.mcmFrame} mcmRunning={mcm.mcmRunning}

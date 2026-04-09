@@ -8,11 +8,13 @@ import { algorithmRegistry, useSortingSearch } from '../hooks/useSortingSearch';
 import { useBST, BST_IDS, bstInfo, bstCode } from '../hooks/useBST';
 import { useLCS, lcsInfo, lcsCode } from '../hooks/useLCS';
 import { useLIS, lisInfo, lisCode } from '../hooks/useLIS';
+import { useMCM, mcmInfo, mcmCode } from '../hooks/useMCM';
 
 import SortingSection from '../sections/SortingSection';
 import BSTSection from '../sections/BSTSection';
 import LCSSection from '../sections/LCSSection';
 import LISSection from '../sections/LISSection';
+import MCMSection from '../sections/MCMSection';
 
 export default function Home() {
   const [selectedAlgo, setSelectedAlgo] = useState('bubbleSort');
@@ -22,7 +24,8 @@ export default function Home() {
   const isBST = BST_IDS.has(selectedAlgo);
   const isLCS = selectedAlgo === 'lcs';
   const isLIS = selectedAlgo === 'lis';
-  const isSort = !isBST && !isLCS && !isLIS;
+  const isMCM = selectedAlgo === 'mcm';
+  const isSort = !isBST && !isLCS && !isLIS && !isMCM;
 
   const currentAlgo = isSort ? algorithmRegistry[selectedAlgo] : null;
 
@@ -30,6 +33,7 @@ export default function Home() {
   const bst     = useBST(selectedAlgo, speed);
   const lcs     = useLCS(speed);
   const lis     = useLIS(speed);
+  const mcm     = useMCM(speed);
 
   const handleSelectAlgo = useCallback((algoId) => {
     setSelectedAlgo(algoId);
@@ -37,11 +41,13 @@ export default function Home() {
     bst.resetState();
     lcs.resetState();
     lis.resetState();
+    mcm.resetState();
   }, []); // eslint-disable-line
 
-  const currentInfo = isLIS ? lisInfo : isLCS ? lcsInfo : isBST ? bstInfo : currentAlgo?.info;
-  const currentCode = isLIS ? lisCode : isLCS ? lcsCode : isBST ? bstCode : currentAlgo?.code;
-  const currentActiveLine = isLIS ? lis.lisFrame?.activeLine
+  const currentInfo = isMCM ? mcmInfo : isLIS ? lisInfo : isLCS ? lcsInfo : isBST ? bstInfo : currentAlgo?.info;
+  const currentCode = isMCM ? mcmCode : isLIS ? lisCode : isLCS ? lcsCode : isBST ? bstCode : currentAlgo?.code;
+  const currentActiveLine = isMCM ? mcm.mcmFrame?.activeLine
+    : isLIS ? lis.lisFrame?.activeLine
     : isLCS ? lcs.lcsFrame?.activeLine
     : isBST ? bst.bstFrame?.activeLine
     : sorting.frame?.activeLine;
@@ -54,7 +60,17 @@ export default function Home() {
         <Sidebar selected={selectedAlgo} onSelect={handleSelectAlgo} />
 
         <main className="flex-1 flex flex-col min-h-0 bg-zinc-950">
-          {isLIS ? (
+          {isMCM ? (
+            <MCMSection
+              mcmDims={mcm.mcmDims} setMcmDims={mcm.setMcmDims}
+              mcmFrame={mcm.mcmFrame} mcmRunning={mcm.mcmRunning}
+              mcmDone={mcm.mcmDone} mcmGenRef={mcm.mcmGenRef}
+              speed={speed} onSpeedChange={setSpeed}
+              onRun={mcm.handleRun} onPause={mcm.handlePause}
+              onResume={mcm.handleResume} onStep={mcm.handleStep}
+              onReset={mcm.handleReset}
+            />
+          ) : isLIS ? (
             <LISSection
               lisArr={lis.lisArr} setLisArr={lis.setLisArr}
               lisFrame={lis.lisFrame} lisRunning={lis.lisRunning}

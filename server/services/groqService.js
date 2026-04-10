@@ -27,14 +27,24 @@ Rules:
 /**
  * Sends user prompt to Groq (LLaMA 3 70B) and returns the AI response.
  */
-async function getAiExplanation(userPrompt) {
-  // Format the user input into a structured prompt
-  const formattedPrompt = `Explain the following algorithm or concept in simple steps, include time complexity and a real-life analogy: ${userPrompt}`;
+async function getAiExplanation(userPrompt, selectedAlgo, history = []) {
+  const contextLine = selectedAlgo
+    ? `The user is currently visualizing the **${selectedAlgo}** algorithm. `
+    : '';
+
+  const formattedPrompt = `${contextLine}${userPrompt}`;
+
+  // Build conversation history for multi-turn memory
+  const historyMessages = history.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
 
   const chatCompletion = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
+      ...historyMessages.slice(-10), // keep last 10 messages to avoid token overflow
       { role: 'user', content: formattedPrompt },
     ],
     temperature: 0.7,
